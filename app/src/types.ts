@@ -83,6 +83,9 @@ export interface JournalEntry {
   home_win: number | null;
   score: [number, number] | null;
   odds: [number, number] | null;
+  tip_utc?: string | null;
+  spread?: number | null;
+  live?: boolean;
 }
 
 export interface CalibrationBin {

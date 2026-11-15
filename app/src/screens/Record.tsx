@@ -1,9 +1,9 @@
-import { Check, CircleCheck, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CircleCheck } from "lucide-react";
+import { useMemo } from "react";
 import { Empty, Loading, Page } from "../components/Page";
-import { TeamLogo } from "../components/TeamLogo";
 import { useRecord } from "../data";
-import { pct, pct1, shortDate } from "../format";
+import { pct, pct1, signed } from "../format";
+import { summary } from "../results";
 import type { Backtest, CalibrationBin, JournalEntry } from "../types";
 
 const BINS = [0.5, 0.6, 0.7, 0.8, 0.9];
@@ -24,11 +24,12 @@ function threshold() {
 
 export function Record() {
   const { data, error } = useRecord();
-  const [showAll, setShowAll] = useState(false);
 
   const s = useMemo(() => {
     if (!data) return null;
-    const done = data.journal.filter((e) => e.home_win != null);
+    const liveDone = data.journal.filter((e) => e.home_win != null && e.live !== false);
+    const live = liveDone.length > 0;
+    const done = live ? liveDone : data.journal.filter((e) => e.home_win != null);
     const last = done.reduce((m, e) => (e.date > m ? e.date : m), "");
     const cutoff = last ? new Date(new Date(last + "T12:00:00Z").getTime() - 6 * 864e5).toISOString().slice(0, 10) : "";
     const week = done.filter((e) => e.date >= cutoff);
@@ -44,7 +45,10 @@ export function Record() {
     const th = threshold();
     const sel = done.filter((e) => conf(e) >= th);
     const nights = new Set(done.map((e) => e.date)).size;
+    const bets = summary(done, th);
     return {
+      live,
+      bets,
       n: done.length,
       acc: mean(done.map((e) => +isHit(e))),
       week: mean(week.map((e) => +isHit(e))),
@@ -63,22 +67,16 @@ export function Record() {
     };
   }, [data]);
 
-  const byDate = useMemo(() => {
-    const m = new Map<string, JournalEntry[]>();
-    for (const e of data?.journal ?? []) m.set(e.date, [...(m.get(e.date) ?? []), e]);
-    return [...m.entries()];
-  }, [data]);
-
   const bt = data?.backtest;
   return (
-    <Page title="Bilan" sub={s ? (s.n ? `${s.n} prévisions vérifiées` : "Avant le premier résultat") : " "}>
+    <Page title="Bilan" sub={s ? (s.live ? `${s.n} prévisions en temps réel` : s.n ? `Saison en cours rejouée · ${s.n} matchs` : "Avant le premier résultat") : " "}>
       {error && <Empty icon={<CircleCheck />} title="Données indisponibles" />}
       {!data && !error && <Loading />}
       {s && (
         <>
           {s.n > 0 ? (
             <div className="kpis">
-              <Kpi value={s.acc} label="Bons vainqueurs" big />
+              <Kpi value={s.acc} label={s.live ? "Bons vainqueurs" : "Bons vainqueurs (rejoué)"} big />
               <Kpi value={s.week} label="7 derniers jours" />
               <Kpi value={s.sel.acc} label={`Sélection ≥ ${Math.round(s.sel.th * 100)} %`} />
             </div>
@@ -106,6 +104,29 @@ export function Record() {
             </p>
           </div>
 
+          {s.bets.betN > 0 && (
+            <>
+              <h2 className="section">Paris conseillés</h2>
+              <div className="card bets-card">
+                <div>
+                  <span className={`bets-val ${s.bets.profit >= 0 ? "pos" : "neg"}`}>{signed(s.bets.profit)}</span>
+                  <span className="kpi-label">unités</span>
+                </div>
+                <div>
+                  <span className="bets-val">
+                    {s.bets.betWon}/{s.bets.betN}
+                  </span>
+                  <span className="kpi-label">gagnés</span>
+                </div>
+                <div>
+                  <span className="bets-val">{signed((s.bets.profit / s.bets.betN) * 100)} %</span>
+                  <span className="kpi-label">rendement</span>
+                </div>
+              </div>
+              <p className="note">Pastilles vertes uniquement, 1 unité par pari à la cote du bookmaker.</p>
+            </>
+          )}
+
           {s.books && (
             <>
               <h2 className="section">Face aux bookmakers</h2>
@@ -129,25 +150,7 @@ export function Record() {
             </>
           )}
 
-          <h2 className="section">Journal</h2>
-          {byDate.length === 0 && (
-            <div className="card empty-card">Le journal démarre avec les prévisions de ce soir. Les résultats s'ajoutent chaque matin.</div>
-          )}
-          <div className="stack">
-            {(showAll ? byDate : byDate.slice(0, 4)).map(([date, entries]) => (
-              <div key={date} className="card list">
-                <div className="journal-date">{shortDate(date)}</div>
-                {entries.map((e) => (
-                  <JournalRow key={e.id} e={e} />
-                ))}
-              </div>
-            ))}
-          </div>
-          {byDate.length > 4 && !showAll && (
-            <button className="more" onClick={() => setShowAll(true)}>
-              Tout l'historique
-            </button>
-          )}
+          {!s.live && <p className="note">Le suivi en temps réel démarre avec les matchs du 15 novembre ; en attendant, ces chiffres viennent de la saison rejouée.</p>}
         </>
       )}
     </Page>
@@ -180,23 +183,6 @@ function Versus({ label, value, ll, strong }: { label: string; value: number; ll
       </span>
       <span className="versus-val">{pct1(value)} %</span>
       {ll != null && <span className="versus-ll" title="Log loss (plus bas = mieux)">{ll.toFixed(3)}</span>}
-    </div>
-  );
-}
-
-function JournalRow({ e }: { e: JournalEntry }) {
-  const homePick = e.p_home >= 0.5;
-  const p = conf(e);
-  return (
-    <div className="journal-row">
-      <TeamLogo abbr={e.away} size={24} dim={homePick} />
-      <span className="journal-at">@</span>
-      <TeamLogo abbr={e.home} size={24} dim={!homePick} />
-      <span className="journal-score">{e.score ? `${e.score[1]}–${e.score[0]}` : ""}</span>
-      <span className="journal-p">{pct(p)} %</span>
-      <span className={`journal-res ${e.home_win == null ? "" : isHit(e) ? "ok" : "ko"}`}>
-        {e.home_win == null ? "·" : isHit(e) ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}
-      </span>
     </div>
   );
 }

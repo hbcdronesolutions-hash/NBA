@@ -1,8 +1,9 @@
-import { ChartNoAxesColumn, CircleCheck, Moon, Target } from "lucide-react";
+import { ChartNoAxesColumn, CircleCheck, ListChecks, Moon, Target } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const TABS = [
   { to: "/", label: "Ce soir", Icon: Moon },
+  { to: "/resultats", label: "Résultats", Icon: ListChecks },
   { to: "/selection", label: "Sélection", Icon: Target },
   { to: "/forces", label: "Forces", Icon: ChartNoAxesColumn },
   { to: "/bilan", label: "Bilan", Icon: CircleCheck },

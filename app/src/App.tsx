@@ -4,6 +4,7 @@ import { TabBar } from "./components/TabBar";
 import { Match } from "./screens/Match";
 import { Ratings } from "./screens/Ratings";
 import { Record } from "./screens/Record";
+import { Results } from "./screens/Results";
 import { Selection } from "./screens/Selection";
 import { Tonight } from "./screens/Tonight";
 
@@ -21,6 +22,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Tonight />} />
           <Route path="/match/:id" element={<Match />} />
+          <Route path="/resultats" element={<Results />} />
           <Route path="/selection" element={<Selection />} />
           <Route path="/forces" element={<Ratings />} />
           <Route path="/bilan" element={<Record />} />

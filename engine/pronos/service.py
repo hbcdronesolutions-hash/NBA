@@ -133,21 +133,57 @@ def _prior_for(games: pd.DataFrame, season: str, p: R.Params) -> R.Ratings:
     return prior
 
 
-def record_payload(con: sqlite3.Connection) -> dict:
-    rows = con.execute("""
-        SELECT p.match_id, m.date, m.domicile, m.exterieur, p.proba_dom, m.score_dom, m.score_ext,
-               (SELECT cote_dom FROM cotes c WHERE c.match_id = p.match_id
-                ORDER BY releve DESC LIMIT 1) AS cote_dom,
-               (SELECT cote_ext FROM cotes c WHERE c.match_id = p.match_id
-                ORDER BY releve DESC LIMIT 1) AS cote_ext
-        FROM previsions p JOIN matchs m ON m.id = p.match_id ORDER BY m.date DESC, m.id""").fetchall()
-    journal = [{
-        "id": r["match_id"], "date": r["date"], "home": r["domicile"], "away": r["exterieur"],
-        "p_home": round(r["proba_dom"], 4),
-        "home_win": None if r["score_dom"] is None else int(r["score_dom"] > r["score_ext"]),
-        "score": None if r["score_dom"] is None else [r["score_dom"], r["score_ext"]],
-        "odds": [r["cote_dom"], r["cote_ext"]] if r["cote_dom"] else None,
-    } for r in rows]
+def _latest_odds(con: sqlite3.Connection) -> dict[str, tuple[float, float]]:
+    rows = con.execute("SELECT match_id, cote_dom, cote_ext FROM cotes ORDER BY releve").fetchall()
+    return {r["match_id"]: (r["cote_dom"], r["cote_ext"]) for r in rows}
+
+
+def replay_season(games: pd.DataFrame, season: str, p: R.Params) -> pd.DataFrame:
+    """Saison en cours rejouée match par match, sans information postérieure (pas les absents)."""
+    sg = games[games["season"] == season].sort_values("date")
+    prior = _prior_for(games, season, p)
+    rows = []
+    for day, dg in sg[sg["home_pts"].notna()].groupby("date", sort=True):
+        r = R.compute(sg, day, prior, p)
+        for g in dg.itertuples():
+            pr = predict(g.home, g.away, day, r, p, schedule=sg)
+            rows.append({"id": g.id, "p_home": pr.p_home, "spread": pr.spread})
+    return pd.DataFrame(rows)
+
+
+def record_payload(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> dict:
+    """Journal (prévisions enregistrées avant les matchs) + saison en cours rejouée avant le journal."""
+    odds = _latest_odds(con)
+    games = load_games(con)
+    info = games.set_index("id")
+
+    def entry(gid: str, p_home: float, spread: float | None, live: bool) -> dict:
+        g = info.loc[gid]
+        done = pd.notna(g["home_pts"])
+        o = odds.get(gid)
+        return {
+            "id": gid, "date": g["date"].date().isoformat(), "tip_utc": g["tip_utc"],
+            "home": g["home"], "away": g["away"], "p_home": round(float(p_home), 4),
+            "spread": None if spread is None or pd.isna(spread) else round(float(spread), 1),
+            "home_win": int(g["home_pts"] > g["away_pts"]) if done else None,
+            "score": [int(g["home_pts"]), int(g["away_pts"])] if done else None,
+            "odds": [o[0], o[1]] if o and o[0] and o[1] else None,
+            "live": live,
+        }
+
+    rows = con.execute("SELECT match_id, proba_dom, ecart_dom FROM previsions").fetchall()
+    journal = [entry(r["match_id"], r["proba_dom"], r["ecart_dom"], True) for r in rows if r["match_id"] in info.index]
+    live_ids = {e["id"] for e in journal}
+    first_live = min((e["date"] for e in journal), default="9999")
+    season = season_of((day or pd.Timestamp(datetime.now(ET).date())).date())
+    try:
+        rep = replay_season(games, season, load_params())
+    except Exception:
+        rep = pd.DataFrame()
+    for r in rep.itertuples() if len(rep) else []:
+        if r.id not in live_ids and info.loc[r.id, "date"].date().isoformat() < first_live:
+            journal.append(entry(r.id, r.p_home, r.spread, False))
+    journal.sort(key=lambda e: (e["date"], e["tip_utc"] or ""), reverse=True)
     backtest = json.loads(BACKTEST_FILE.read_text()) if BACKTEST_FILE.exists() else None
     return {"journal": journal, "backtest": backtest}
 
@@ -160,7 +196,7 @@ def export(con: sqlite3.Connection, day: pd.Timestamp | None = None, demo: bool 
                        "date": day.date().isoformat(), "demo": demo, "version": p.version,
                        "sigma": p.sigma, "games": games},
         "ratings.json": ratings_payload(con, day),
-        "record.json": record_payload(con),
+        "record.json": record_payload(con, day),
     }
     return write_payloads(payloads)
 
