@@ -227,3 +227,28 @@ def season_days(start_year: int, today: date | None = None) -> list[date]:
     if today:
         last = min(last, today + timedelta(days=10))
     return [first + timedelta(days=k) for k in range((last - first).days + 1)]
+
+
+def fetch_rosters(workers: int = 8) -> list[dict]:
+    """Effectifs officiels actuels des 30 équipes (un joueur transféré est dans sa nouvelle équipe)."""
+    data = _get(f"{BASE}/teams")
+    teams = [t["team"] for t in data["sports"][0]["leagues"][0]["teams"]]
+
+    def one(t):
+        abbr_ = team_abbr(t["abbreviation"])
+        r = _get(f"{BASE}/teams/{t['id']}/roster")
+        return [{"id": int(a["id"]), "name": a["displayName"], "team": abbr_} for a in r.get("athletes", [])]
+
+    with ThreadPoolExecutor(workers) as ex:
+        return [p for team in ex.map(one, teams) for p in team]
+
+
+def store_rosters(con: sqlite3.Connection, players: list[dict]) -> int:
+    if len({p["team"] for p in players}) < 30:   # réponse incomplète : on garde l'ancien effectif
+        return 0
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    con.execute("DELETE FROM effectifs")
+    con.executemany("INSERT OR REPLACE INTO effectifs VALUES (?,?,?,?)",
+                    [(p["id"], p["name"], p["team"], now) for p in players])
+    con.commit()
+    return len(players)

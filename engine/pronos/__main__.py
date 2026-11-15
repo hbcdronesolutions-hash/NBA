@@ -67,9 +67,19 @@ def cmd_soir(args) -> None:
         print(f"Blessures : {INJ.store(con, f'{stamp} {url}', rows)} lignes ({url.rsplit('/', 1)[-1]})")
     else:
         print("Blessures : aucun rapport trouvé")
-    odds = C.fetch_odds()
-    if odds:
-        print(f"Cotes The Odds API : {C.store_odds(con, odds)} matchs")
+    try:
+        print(f"Effectifs : {E.store_rosters(con, E.fetch_rosters())} joueurs")
+    except Exception as e:
+        print(f"Effectifs : erreur {e.__class__.__name__}, ancien effectif conservé")
+    # Cotes françaises : au plus une lecture toutes les 2 h (offre gratuite : 500 requêtes / mois).
+    last = con.execute("SELECT MAX(releve) FROM cotes WHERE bookmaker LIKE '%(FR)'").fetchone()[0]
+    age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 3600 if last else 99
+    if age_h >= 1.9:
+        odds = C.fetch_odds()
+        if odds:
+            print(f"Cotes The Odds API : {C.store_odds(con, odds)} cotes")
+    else:
+        print(f"Cotes françaises : relevées il y a {age_h:.1f} h, pas de nouvelle requête")
     _, games = tonight(con)
     print(f"Journal : {journal(con, games, load_params().version)} prévisions enregistrées")
     save_journal_csv(con)
@@ -97,9 +107,19 @@ def cmd_auto(args) -> None:
     if url:
         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
         print(f"Blessures : {INJ.store(con, f'{stamp} {url}', rows)} lignes ({url.rsplit('/', 1)[-1]})")
-    odds = C.fetch_odds()
-    if odds:
-        print(f"Cotes The Odds API : {C.store_odds(con, odds)} matchs")
+    try:
+        print(f"Effectifs : {E.store_rosters(con, E.fetch_rosters())} joueurs")
+    except Exception as e:
+        print(f"Effectifs : erreur {e.__class__.__name__}, ancien effectif conservé")
+    # Cotes françaises : au plus une lecture toutes les 2 h (offre gratuite : 500 requêtes / mois).
+    last = con.execute("SELECT MAX(releve) FROM cotes WHERE bookmaker LIKE '%(FR)'").fetchone()[0]
+    age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 3600 if last else 99
+    if age_h >= 1.9:
+        odds = C.fetch_odds()
+        if odds:
+            print(f"Cotes The Odds API : {C.store_odds(con, odds)} cotes")
+    else:
+        print(f"Cotes françaises : relevées il y a {age_h:.1f} h, pas de nouvelle requête")
     _, games = tonight(con)
     print(f"Journal : {journal(con, games, load_params().version)} prévisions enregistrées")
     save_journal_csv(con)

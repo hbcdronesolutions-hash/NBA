@@ -5,7 +5,7 @@ import { Empty, Loading, Page } from "../components/Page";
 import { TeamLogo } from "../components/TeamLogo";
 import { useRecord } from "../data";
 import { odds, pct, shortDate, signed } from "../format";
-import { advisedBet, bestNightPick, isHit, nightPickFor, pickSide, readThreshold, summary } from "../results";
+import { advisedBet, bestNightPick, isHit, nightPickFor, pickSide, readThreshold, summary, topK } from "../results";
 import { team } from "../teams";
 import type { JournalEntry, Side } from "../types";
 
@@ -70,11 +70,24 @@ export function Results() {
             </div>
           </div>
 
+          <div className="card tops">
+            <span className="tops-title">Les plus sûrs du soir</span>
+            {[2, 3].map((k) => {
+              const t = topK(night[1], k);
+              return (
+                <div key={k} className={`tops-item${t && t.hits === k ? " is-perfect" : ""}`}>
+                  <span className="tops-k">{k} matchs</span>
+                  <span className="tops-val">{t ? `${t.hits}/${k}` : "—"}</span>
+                </div>
+              );
+            })}
+          </div>
+
           <div className="stack" style={{ marginTop: 12 }}>
             {[...night[1]]
               .sort((a, b) => Math.max(b.p_home, 1 - b.p_home) - Math.max(a.p_home, 1 - a.p_home))
-              .map((e) => (
-                <ResultCard key={e.id} e={e} nightPick={nightPickId === e.id} />
+              .map((e, i) => (
+                <ResultCard key={e.id} e={e} nightPick={nightPickId === e.id} rank={i < 3 ? i + 1 : undefined} />
               ))}
           </div>
           <p className="note">Paris conseillés : pastille verte, 1 unité misée à la cote du bookmaker. Gain en unités.</p>
@@ -84,12 +97,13 @@ export function Results() {
   );
 }
 
-function ResultCard({ e, nightPick }: { e: JournalEntry; nightPick?: boolean }) {
+function ResultCard({ e, nightPick, rank }: { e: JournalEntry; nightPick?: boolean; rank?: number }) {
   const hit = isHit(e);
   const bet = advisedBet(e);
   const pick = pickSide(e);
   return (
     <div className="card result">
+      {rank && <span className="result-rank">{rank === 1 ? "Le plus sûr" : `${rank}e plus sûr`}</span>}
       <div className={`result-mark ${hit ? "ok" : "ko"}`}>{hit ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}</div>
       <Row e={e} side="away" pick={pick} />
       <Row e={e} side="home" pick={pick} />

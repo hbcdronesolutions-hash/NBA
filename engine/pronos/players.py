@@ -24,7 +24,7 @@ def game_score(df: pd.DataFrame) -> pd.Series:
             + 0.7 * df["blk"] - 0.4 * df["pf"] - df["tov"])
 
 
-def player_table(logs: pd.DataFrame, asof: pd.Timestamp) -> pd.DataFrame:
+def player_table(logs: pd.DataFrame, asof: pd.Timestamp, rosters: dict[int, str] | None = None) -> pd.DataFrame:
     """Une ligne par joueur : équipe actuelle, minutes prévues (10 derniers matchs), impact."""
     logs = logs[logs["date"] < asof].copy()
     if logs.empty:
@@ -38,7 +38,7 @@ def player_table(logs: pd.DataFrame, asof: pd.Timestamp) -> pd.DataFrame:
         rows.append({
             "player_id": pid,
             "name": g["name"].iloc[-1],
-            "team": g["team"].iloc[-1],
+            "team": (rosters or {}).get(int(pid), g["team"].iloc[-1]),
             "minutes": float(g["minutes"].tail(10).mean()),
             "impact": max(0.0, (gs36 - REPLACEMENT_GS36) * POINTS_PER_GS),
         })

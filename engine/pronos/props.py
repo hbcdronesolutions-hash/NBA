@@ -43,7 +43,7 @@ def _allowed(d: pd.DataFrame, r: Ratings) -> tuple[dict, dict]:
 
 
 def forecasts(logs: pd.DataFrame, day: pd.Timestamp, home: str, away: str, r: Ratings,
-              injuries: list[dict]) -> list[dict]:
+              injuries: list[dict], rosters: dict[int, str] | None = None) -> list[dict]:
     d = _prep(logs, day)
     if d.empty:
         return []
@@ -55,7 +55,10 @@ def forecasts(logs: pd.DataFrame, day: pd.Timestamp, home: str, away: str, r: Ra
 
     out = []
     for team, opp in ((home, away), (away, home)):
-        roster = d[d["team"] == team]
+        if rosters:   # effectif officiel actuel : les transferts comptent tout de suite
+            roster = d[d["player_id"].map(rosters) == team]
+        else:
+            roster = d[d["team"] == team]
         if roster.empty:
             continue
         rows = []

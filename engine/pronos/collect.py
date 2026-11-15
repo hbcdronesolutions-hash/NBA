@@ -257,3 +257,8 @@ def load_player_logs(con: sqlite3.Connection, season: str) -> pd.DataFrame:
         LEFT JOIN joueurs j ON j.id = s.joueur_id WHERE m.saison = ?""", con, params=(season,))
     df["date"] = pd.to_datetime(df["date"])
     return df
+
+
+def load_rosters(con: sqlite3.Connection) -> dict[int, str]:
+    """Joueur -> équipe actuelle (vide si les effectifs n'ont pas encore été relevés)."""
+    return {r[0]: r[1] for r in con.execute("SELECT joueur_id, equipe FROM effectifs")}

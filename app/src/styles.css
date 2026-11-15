@@ -872,3 +872,34 @@ input[type="range"]::-moz-range-thumb {
 .nightpick-none { color: var(--muted); font-weight: 550; gap: 6px; }
 .nightpick-res.won { background: var(--green-bg); color: var(--green); }
 .nightpick-res.lost { background: var(--gray-bg); color: var(--ink-2); }
+
+/* ------------------------------------------- les plus sûrs du soir */
+
+.tops { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-top: 10px; }
+.tops-title { flex: 1; font-size: 13px; font-weight: 650; color: var(--ink-2); }
+.tops-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--gray-bg);
+}
+.tops-item.is-perfect { background: var(--green-bg); color: var(--green); }
+.tops-k { font-size: 11px; font-weight: 650; color: var(--muted); }
+.tops-item.is-perfect .tops-k { color: var(--green); }
+.tops-val { font-size: 20px; font-weight: 780; letter-spacing: -0.02em; }
+.tops-row { display: grid; grid-template-columns: 90px 1fr auto; align-items: baseline; gap: 10px; padding: 12px 0; }
+.tops-big { font-size: 20px; font-weight: 750; letter-spacing: -0.02em; }
+.tops-big small { font-size: 12px; font-weight: 550; color: var(--muted); letter-spacing: 0; }
+.tops-rate { font-size: 14px; font-weight: 650; color: var(--ink-2); }
+.result-rank {
+  display: inline-block;
+  margin: 2px 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

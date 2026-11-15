@@ -98,3 +98,25 @@ export function nightPicksHistory(entries: JournalEntry[]) {
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }
+
+/** Les k pronostics les plus sûrs d'une soirée : combien justes. */
+export function topK(entries: JournalEntry[], k: number): { hits: number; n: number } | null {
+  const done = entries.filter((e) => e.home_win != null).sort((a, b) => conf(b) - conf(a)).slice(0, k);
+  if (done.length < k) return null;
+  return { hits: done.filter(isHit).length, n: k };
+}
+
+/** Sur toutes les soirées : part des soirées « tous justes » et réussite globale des k plus sûrs. */
+export function topKHistory(entries: JournalEntry[], k: number) {
+  const nights = new Map<string, JournalEntry[]>();
+  for (const e of entries) nights.set(e.date, [...(nights.get(e.date) ?? []), e]);
+  let n = 0, allRight = 0, hits = 0;
+  for (const es of nights.values()) {
+    const t = topK(es, k);
+    if (!t) continue;
+    n += 1;
+    hits += t.hits;
+    if (t.hits === k) allRight += 1;
+  }
+  return { nights: n, allRight, hitRate: n ? hits / (n * k) : NaN };
+}

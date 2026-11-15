@@ -48,6 +48,10 @@ CREATE TABLE IF NOT EXISTS notes_equipes (
     date TEXT, equipe TEXT, attaque REAL, defense REAL, rythme REAL,
     PRIMARY KEY (date, equipe)
 );
+-- Effectif actuel de chaque équipe (transferts pris en compte avant le premier match).
+CREATE TABLE IF NOT EXISTS effectifs (
+    joueur_id INTEGER PRIMARY KEY, nom TEXT, equipe TEXT, maj TEXT
+);
 -- Journal des prévisions : une ligne par match, jamais modifiée ensuite.
 CREATE TABLE IF NOT EXISTS previsions (
     match_id TEXT PRIMARY KEY, proba_dom REAL, ecart_dom REAL,

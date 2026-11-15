@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Empty, Loading, Page } from "../components/Page";
 import { useRecord } from "../data";
 import { pct, pct1, signed } from "../format";
-import { nightPicksHistory, summary } from "../results";
+import { nightPicksHistory, summary, topKHistory } from "../results";
 import type { Backtest, CalibrationBin, JournalEntry } from "../types";
 
 const BINS = [0.5, 0.6, 0.7, 0.8, 0.9];
@@ -114,6 +114,30 @@ export function Record() {
               <span className="dash" /> Idéal
             </p>
           </div>
+
+          {(() => {
+            const pool = data!.journal.filter((e) => e.home_win != null && (s.live ? e.live !== false : true));
+            const rows = [2, 3].map((k) => ({ k, ...topKHistory(pool, k) })).filter((x) => x.nights > 0);
+            if (!rows.length) return null;
+            return (
+              <>
+                <h2 className="section">Les plus sûrs du soir</h2>
+                <div className="card list">
+                  {rows.map((x) => (
+                    <div key={x.k} className="tops-row">
+                      <span className="tops-k">{x.k} plus sûrs</span>
+                      <span className="tops-big">
+                        {x.allRight}/{x.nights}
+                        <small> soirs tous justes</small>
+                      </span>
+                      <span className="tops-rate">{pct(x.hitRate)} %</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="note">{s.live ? "En temps réel" : "Saison rejouée"} · à droite : réussite de ces pronos pris un par un.</p>
+              </>
+            );
+          })()}
 
           {nightPicks.length > 0 && (
             <>

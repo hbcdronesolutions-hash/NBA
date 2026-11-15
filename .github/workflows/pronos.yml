@@ -5,7 +5,11 @@ on:
   schedule:
     - cron: "17 9 * * *"    # 10h17 Paris (hiver)
     - cron: "47 16 * * *"   # 17h47 Paris, avant les matchs du week-end
-    - cron: "37 22 * * *"   # 23h37 Paris, dernier rapport des blessures
+    - cron: "37 22 * * *"   # 23h37 Paris, rapport des blessures
+    # Le soir, toutes les 30 min jusqu'aux derniers matchs : forfaits de dernière minute.
+    # (Cotes françaises relues au plus toutes les 2 h pour rester dans l'offre gratuite.)
+    - cron: "7,37 23 * * *"
+    - cron: "7,37 0-3 * * *"
     - cron: "23 5 * * 1"    # lundi : backtest et réglage des paramètres
   workflow_dispatch:
     inputs:

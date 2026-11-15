@@ -12,7 +12,7 @@ import pandas as pd
 from . import betting as B
 from . import injuries as INJ
 from . import ratings as R
-from .collect import ET, load_games, load_player_logs, season_of
+from .collect import ET, load_games, load_player_logs, load_rosters, season_of
 from .db import ROOT
 from .model import Prediction, predict
 from .players import absences_for, player_table
@@ -43,7 +43,8 @@ def tonight(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> tuple[p
     season = season_of(day.date())
     sched = games[games["season"] == season]
     plogs = load_player_logs(con, season)
-    players = player_table(plogs, day)
+    rosters = load_rosters(con)
+    players = player_table(plogs, day, rosters)
     inj = INJ.latest_for(con, day.date().isoformat())
     out = []
     for g in sched[sched["date"] == day].itertuples():
@@ -52,7 +53,7 @@ def tonight(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> tuple[p
         pr = predict(g.home, g.away, day, r, p, schedule=sched, absences=abs_)
         payload = game_payload(g.id, g.tip_utc, pr, match_odds(con, g.id),
                                 (g.home_pts, g.away_pts) if pd.notna(g.home_pts) else None)
-        payload["players"] = forecasts(plogs, day, g.home, g.away, r, inj) if len(plogs) else []
+        payload["players"] = forecasts(plogs, day, g.home, g.away, r, inj, rosters) if len(plogs) else []
         out.append(payload)
     return day, out
 
@@ -111,6 +112,9 @@ def journal(con: sqlite3.Connection, games: list[dict], version: str) -> int:
     for g in games:
         if g["tip_utc"] and datetime.fromisoformat(g["tip_utc"]) <= now:
             continue
+        old = con.execute("SELECT proba_dom, absents FROM previsions WHERE match_id=?", (g["id"],)).fetchone()
+        if old and abs(old["proba_dom"] - g["p_home"]) < 1e-4 and old["absents"] == json.dumps(g["absences"]):
+            continue   # rien n'a changé : on ne réécrit pas (journal stable)
         cur = con.execute(
             "INSERT OR REPLACE INTO previsions VALUES (?,?,?,?,?,?,?)",
             (g["id"], g["p_home"], g["spread"], json.dumps(g["factors"]), json.dumps(g["absences"]),
