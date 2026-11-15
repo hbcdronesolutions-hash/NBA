@@ -1,0 +1,160 @@
+import { ChevronLeft } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { OddsPill, VERDICT_LABEL } from "../components/OddsPill";
+import { Loading } from "../components/Page";
+import { ProbBar } from "../components/ProbBar";
+import { TeamLogo } from "../components/TeamLogo";
+import { pick, useToday } from "../data";
+import { num1, odds, pct, signed, tipTime } from "../format";
+import { team } from "../teams";
+import type { Factor, Game, Side } from "../types";
+
+const STATUS: Record<string, string> = { out: "Absent", doubtful: "Douteux", questionable: "Incertain" };
+
+export function Match() {
+  const { id } = useParams();
+  const { data } = useToday();
+  const g = data?.games.find((x) => x.id === id);
+  return (
+    <main className="page page-detail">
+      <header className="detail-head">
+        <Link to="/" className="back" aria-label="Retour">
+          <ChevronLeft size={24} />
+        </Link>
+        <span className="time">{g ? tipTime(g.tip_utc) : ""}</span>
+        <span style={{ width: 32 }} />
+      </header>
+      {!g ? <Loading /> : <Detail g={g} />}
+    </main>
+  );
+}
+
+function Detail({ g }: { g: Game }) {
+  const fav = pick(g);
+  const sign = fav.side === "home" ? 1 : -1;
+  const factors = mergeFactors(g.factors);
+  const maxAbs = Math.max(2, ...factors.map((f) => Math.abs(f.points)));
+  return (
+    <>
+      <section className="hero">
+        <HeroTeam abbr={g.away} p={1 - g.p_home} fav={fav.side === "away"} />
+        <span className="hero-at">@</span>
+        <HeroTeam abbr={g.home} p={g.p_home} fav={fav.side === "home"} />
+      </section>
+      <ProbBar away={g.away} home={g.home} pHome={g.p_home} pBookHome={g.p_book_home} divergence={g.divergence} height={8} />
+      <p className="spread">
+        <TeamLogo abbr={fav.abbr} size={18} /> {team(fav.abbr).name} par <b>{num1(Math.abs(g.spread))}</b> pts
+        {g.p_book_home != null && (
+          <span className={`book${g.divergence ? " is-alert" : ""}`}>
+            Bookmakers {pct(fav.side === "home" ? g.p_book_home : 1 - g.p_book_home)} %
+          </span>
+        )}
+      </p>
+
+      <h2 className="section">Ce qui fait pencher</h2>
+      <div className="card list">
+        {factors.map((f) => {
+          const v = f.points * sign; // positif = pousse vers le favori
+          const tone = v >= 0 ? team(fav.abbr).color : team(fav.side === "home" ? g.away : g.home).color;
+          return (
+            <div key={f.key + (f.team ?? "")} className="factor">
+              <span className="factor-label">
+                {f.team && <TeamLogo abbr={f.team} size={18} />}
+                {f.label}
+              </span>
+              <span className="factor-bar">
+                <span className="axis" />
+                <span
+                  className="fill"
+                  style={{
+                    background: tone,
+                    width: `${(Math.abs(v) / maxAbs) * 50}%`,
+                    [v >= 0 ? "left" : "right"]: "50%",
+                  }}
+                />
+              </span>
+              <span className="factor-val">{signed(v)}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {g.absences.length > 0 && (
+        <>
+          <h2 className="section">Absents</h2>
+          <div className="card list">
+            {g.absences.map((a) => (
+              <div key={a.team + a.player} className="absent">
+                <TeamLogo abbr={a.team} size={22} />
+                <span className="absent-name">{a.player}</span>
+                <span className={`status status-${a.status.toLowerCase()}`}>{STATUS[a.status.toLowerCase()] ?? a.status}</span>
+                <span className="factor-val">−{num1(a.impact)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <h2 className="section">Cotes</h2>
+      <div className="odds-grid">
+        {(["away", "home"] as Side[]).map((s) => (
+          <OddsCard key={s} g={g} side={s} />
+        ))}
+      </div>
+      <p className="legend">
+        <span className="pill pill-vert"><span className="pill-dot" /></span> cote ≥ minimum
+        <span className="pill pill-gris"><span className="pill-dot" /></span> ne pas miser
+        <span className="pill pill-orange"><span className="pill-dot" /></span> à vérifier
+      </p>
+    </>
+  );
+}
+
+function HeroTeam({ abbr, p, fav }: { abbr: string; p: number; fav: boolean }) {
+  return (
+    <div className={`hero-team${fav ? " is-fav" : ""}`}>
+      <TeamLogo abbr={abbr} size={76} />
+      <span className="hero-name">{team(abbr).name}</span>
+      <span className="hero-prob">
+        {pct(p)}
+        <small>%</small>
+      </span>
+    </div>
+  );
+}
+
+function OddsCard({ g, side }: { g: Game; side: Side }) {
+  const abbr = side === "home" ? g.home : g.away;
+  const v = g.verdict[side];
+  const book = g.odds?.[side];
+  return (
+    <div className="card odds-card">
+      <div className="odds-team">
+        <TeamLogo abbr={abbr} size={24} />
+        <span>{team(abbr).name}</span>
+      </div>
+      <dl>
+        <dt>Minimum</dt>
+        <dd>
+          <OddsPill value={g.min_odds[side]} verdict={v} />
+        </dd>
+        <dt>Équilibre</dt>
+        <dd>{odds(g.fair_odds[side])}</dd>
+        <dt>{g.odds?.book ?? "Bookmaker"}</dt>
+        <dd>{book ? odds(book) : "—"}</dd>
+      </dl>
+      <span className={`verdict verdict-${v}`}>{VERDICT_LABEL[v]}</span>
+    </div>
+  );
+}
+
+/** Regroupe les corrections de même nature (ex. déplacement) par équipe. */
+function mergeFactors(fs: Factor[]): Factor[] {
+  const out: Factor[] = [];
+  for (const f of fs) {
+    const same = out.find((o) => o.key === f.key && o.team === f.team);
+    if (same) same.points += f.points;
+    else out.push({ ...f });
+  }
+  return out.filter((f) => Math.abs(f.points) >= 0.05);
+}
