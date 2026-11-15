@@ -245,10 +245,14 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
         page.evaluate("document.querySelectorAll('.factor').forEach(r => { r.style.opacity='1'; r.style.background='transparent'; })")
 
         # Cotes.
-        page.locator(".odds-grid").scroll_into_view_if_needed()
-        page.evaluate("document.querySelector('.odds-grid').scrollIntoView({block:'start'}); window.scrollBy(0,-60)")
-        page.wait_for_timeout(250)
-        _shot(page, out / "cotes.png")
+        box = page.evaluate("""() => {
+            const g = document.querySelector('.odds-grid');
+            const end = document.querySelector('.legend') || g;
+            let top = g.getBoundingClientRect().top + window.scrollY - 70;
+            const bottom = end.getBoundingClientRect().bottom + window.scrollY + 16;
+            return {x: 0, y: Math.max(0, top), width: window.innerWidth, height: bottom - Math.max(0, top)};
+        }""")
+        page.screenshot(path=str(out / "cotes.png"), full_page=True, clip=box)
         browser.close()
     srv.shutdown()
     return {"home": logos[".hero .hero-team:first-child svg"], "away": logos[".hero .hero-team:last-child svg"]}
