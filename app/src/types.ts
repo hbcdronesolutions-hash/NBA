@@ -114,6 +114,7 @@ export interface Backtest {
   calibration: CalibrationBin[];
   baselines: { home_always: number | null; better_record: number | null };
   selection: Record<string, { per_night: number; accuracy: number | null } | number>;
+  roster?: { label: string; accuracy: number; logloss: number; n: number; note?: string } | null;
   books?: { n: number; model_accuracy: number; model_logloss: number; book_accuracy: number; book_logloss: number } | null;
 }
 

@@ -152,7 +152,8 @@ def cmd_backtest(args) -> None:
               f"  —  bookmakers {books['book_accuracy']:.1%} / {books['book_logloss']:.3f}")
     PARAMS_FILE.parent.mkdir(parents=True, exist_ok=True)
     PARAMS_FILE.write_text(json.dumps(asdict(best), indent=2))
-    BACKTEST_FILE.write_text(json.dumps({
+    keep = json.loads(BACKTEST_FILE.read_text()).get("roster") if BACKTEST_FILE.exists() else None
+    BACKTEST_FILE.write_text(json.dumps({"roster": keep,
         "source": f"Backtest sur données réelles — {', '.join(test)} ({mt['n']} matchs jamais vus)",
         "seasons": test, **mt, "baselines": BT.baselines(games, test),
         "selection": BT.selection(t), "books": books}))

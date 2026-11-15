@@ -96,7 +96,8 @@ def team_context(schedule: pd.DataFrame, team: str, day: pd.Timestamp, venue: st
 def predict(home: str, away: str, day: pd.Timestamp, r: Ratings, p: Params,
             schedule: pd.DataFrame | None = None,
             absences: list[Absence] | None = None,
-            use_context: bool = True) -> Prediction:
+            use_context: bool = True,
+            roster: dict[str, dict] | None = None) -> Prediction:
     th, ta = r.team(home), r.team(away)
 
     # Étage 1 — force de base, ramenée au rythme prévu du match.
@@ -136,15 +137,40 @@ def predict(home: str, away: str, day: pd.Timestamp, r: Ratings, p: Params,
                                           if c.km >= 1000 else
                                           f"{nick(team)} : {c.km:.0f} km depuis leur dernier match{tz}"))
 
-    # Étage 2 — effectif du soir (version simplifiée : on retire l'impact des absents).
+    # Étage 2 — effectif du soir.
+    STATUS_FR = {"out": "absent", "doubtful": "douteux", "questionable": "incertain"}
     absences = absences or []
-    for team, sign in ((home, 1), (away, -1)):
-        lost = sum(a.impact for a in absences if a.team == team)
-        if lost:
-            STATUS_FR = {"out": "absent", "doubtful": "douteux", "questionable": "incertain"}
-            names = ", ".join(f"{a.player.split(' ', 1)[-1]} ({STATUS_FR.get(a.status.lower(), a.status)})"
-                              for a in absences if a.team == team)
-            factors.append(Factor("absents", "Joueurs absents", -sign * lost, team, f"{nick(team)} sans {names}"))
+    if roster is not None:
+        # v1.1 : valeur des joueurs mesurée sur les résultats ; effectif du soir comparé à l'habituel.
+        absences = []
+        for team, sign in ((home, 1), (away, -1)):
+            adj = roster.get(team)
+            if not adj:
+                continue
+            k = p.roster_k * pace / 100
+            for a_ in adj["absents"]:
+                if a_["impact"] * k >= 0.1:
+                    absences.append(Absence(team, a_["name"], a_["status"], a_["impact"] * k))
+            pts = adj["delta"] * k
+            if abs(pts) < 0.1:
+                continue
+            missing = [a_ for a_ in adj["absents"] if a_["impact"] * k >= 0.3]
+            if missing:
+                names = ", ".join(f"{a_['name'].split(' ', 1)[-1]} ({STATUS_FR.get(a_['status'], a_['status'])})"
+                                  for a_ in missing[:4])
+                detail = f"{nick(team)} sans {names}"
+            elif pts > 0:
+                detail = f"{nick(team)} : effectif plus complet que lors de leurs derniers matchs"
+            else:
+                detail = f"{nick(team)} : effectif moins fort que lors de leurs derniers matchs"
+            factors.append(Factor("effectif", "Effectif du soir", sign * pts, team, detail))
+    else:
+        for team, sign in ((home, 1), (away, -1)):
+            lost = sum(a.impact for a in absences if a.team == team)
+            if lost:
+                names = ", ".join(f"{a.player.split(' ', 1)[-1]} ({STATUS_FR.get(a.status.lower(), a.status)})"
+                                  for a in absences if a.team == team)
+                factors.append(Factor("absents", "Joueurs absents", -sign * lost, team, f"{nick(team)} sans {names}"))
 
     spread = sum(f.points for f in factors)
     return Prediction(home, away, spread, win_prob(spread, p.sigma), pace, factors, absences)

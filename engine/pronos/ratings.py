@@ -35,8 +35,10 @@ class Params:
     tz_per_hour: float = -0.15
     questionable_weight: float = 0.5
     sigma: float = 13.7
+    roster_k: float = 1.0          # effectif du soir (valeur des joueurs), réglé par backtest
+    rapm_damp: float = 3.0
     iterations: int = 15
-    version: str = "v1.0"
+    version: str = "v1.1"
 
 
 @dataclass

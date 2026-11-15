@@ -11,5 +11,7 @@
   "questionable_weight": 0.5,
   "sigma": 13.49,
   "iterations": 15,
-  "version": "v1.0"
+  "version": "v1.1",
+  "roster_k": 1.0,
+  "rapm_damp": 3.0
 }

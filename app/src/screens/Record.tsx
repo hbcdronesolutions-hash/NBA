@@ -199,7 +199,8 @@ export function Record() {
             <>
               <h2 className="section">Référence backtest</h2>
               <div className="card list">
-                <Versus label="Modèle" value={bt.accuracy} ll={bt.logloss} strong />
+                {bt.roster && <Versus label="+ effectif du soir" value={bt.roster.accuracy} ll={bt.roster.logloss} strong />}
+                <Versus label="Modèle" value={bt.accuracy} ll={bt.logloss} strong={!bt.roster} />
                 {bt.books && <Versus label="Bookmakers" value={bt.books.book_accuracy} ll={bt.books.book_logloss} />}
                 {bt.baselines.better_record != null && <Versus label="Meilleur bilan" value={bt.baselines.better_record} />}
                 {bt.baselines.home_always != null && <Versus label="Toujours domicile" value={bt.baselines.home_always} />}

@@ -12,6 +12,7 @@ import pandas as pd
 from . import betting as B
 from . import injuries as INJ
 from . import ratings as R
+from . import rapm as RP
 from .collect import ET, load_games, load_player_logs, load_rosters, season_of
 from .db import ROOT
 from .model import Prediction, predict
@@ -46,11 +47,21 @@ def tonight(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> tuple[p
     rosters = load_rosters(con)
     players = player_table(plogs, day, rosters)
     inj = INJ.latest_for(con, day.date().isoformat())
+    slate = sched[sched["date"] == day]
+    roster = None
+    try:   # v1.1 : valeur des joueurs (régression avec / sans) et effectif du soir
+        pm = RP.load_minutes(con)
+        values = RP.fit_values(games[games["home_pts"].notna()], pm, day, damp=p.rapm_damp)
+        names = {r_[0]: r_[1] for r_ in con.execute("SELECT id, nom FROM joueurs")}
+        teams = sorted(set(slate["home"]) | set(slate["away"]))
+        roster = RP.roster_adjustments(games, pm, values, day, teams, inj, rosters, names, p.half_life_days)
+    except Exception as e:  # repli sur le calcul simple de la V1
+        print(f"Effectif du soir : repli V1 ({e.__class__.__name__}: {e})")
     out = []
-    for g in sched[sched["date"] == day].itertuples():
+    for g in slate.itertuples():
         pace = r.team(g.home)["pace"] * r.team(g.away)["pace"] / r.league_pace
         abs_ = absences_for(g.home, inj, players, pace) + absences_for(g.away, inj, players, pace) if len(players) else []
-        pr = predict(g.home, g.away, day, r, p, schedule=sched, absences=abs_)
+        pr = predict(g.home, g.away, day, r, p, schedule=sched, absences=abs_, roster=roster)
         payload = game_payload(g.id, g.tip_utc, pr, match_odds(con, g.id),
                                 (g.home_pts, g.away_pts) if pd.notna(g.home_pts) else None)
         payload["players"] = forecasts(plogs, day, g.home, g.away, r, inj, rosters) if len(plogs) else []
