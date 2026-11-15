@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false,
       includeAssets: ["icons/*.png", "icons/*.svg"],
       manifest: {
         name: "Pronos NBA",
