@@ -23,7 +23,8 @@ from . import collect as C
 from . import espn as E
 from . import injuries as INJ
 from .db import ROOT, connect
-from .service import BACKTEST_FILE, PARAMS_FILE, export, journal, load_params, tonight
+from .service import (BACKTEST_FILE, PARAMS_FILE, export, journal, load_journal_csv, load_params,
+                      save_journal_csv, tonight)
 
 
 def _seasons_back(n: int) -> list[str]:
@@ -70,7 +71,38 @@ def cmd_soir(args) -> None:
     if odds:
         print(f"Cotes The Odds API : {C.store_odds(con, odds)} matchs")
     _, games = tonight(con)
-    print(f"Journal : {journal(con, games, load_params().version)} nouvelles prévisions")
+    print(f"Journal : {journal(con, games, load_params().version)} prévisions enregistrées")
+    save_journal_csv(con)
+    export(con)
+    for g in games:
+        fav = g["home"] if g["p_home"] >= .5 else g["away"]
+        print(f"  {g['away']} @ {g['home']}  →  {fav} {max(g['p_home'], 1 - g['p_home']):.0%}")
+
+
+def cmd_auto(args) -> None:
+    """Tâche planifiée (GitHub Actions) : tout en une fois, base reconstruite si besoin."""
+    con = connect()
+    print(f"Journal repris : {load_journal_csv(con)} prévisions")
+    if con.execute("SELECT COUNT(*) FROM matchs WHERE statut='termine'").fetchone()[0] < 3000:
+        args.saisons = 4
+        cmd_init(args)
+    today = date.today()
+    E.sync_dates(con, [today + timedelta(days=k) for k in range(-3, 11)])
+    print(f"Box scores : {E.sync_boxscores(con, progress=False)} nouveaux matchs")
+    try:
+        url, rows = INJ.fetch_latest()
+    except Exception as e:  # le rapport ne doit pas bloquer les prévisions
+        url, rows = None, []
+        print(f"Blessures : erreur {e.__class__.__name__}")
+    if url:
+        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        print(f"Blessures : {INJ.store(con, f'{stamp} {url}', rows)} lignes ({url.rsplit('/', 1)[-1]})")
+    odds = C.fetch_odds()
+    if odds:
+        print(f"Cotes The Odds API : {C.store_odds(con, odds)} matchs")
+    _, games = tonight(con)
+    print(f"Journal : {journal(con, games, load_params().version)} prévisions enregistrées")
+    save_journal_csv(con)
     export(con)
     for g in games:
         fav = g["home"] if g["p_home"] >= .5 else g["away"]
@@ -135,6 +167,7 @@ def main() -> None:
     p = sub.add_parser("init"); p.add_argument("--saisons", type=int, default=4); p.set_defaults(f=cmd_init)
     sub.add_parser("matin").set_defaults(f=cmd_matin)
     sub.add_parser("soir").set_defaults(f=cmd_soir)
+    sub.add_parser("auto").set_defaults(f=cmd_auto)
     sub.add_parser("backtest").set_defaults(f=cmd_backtest)
     sub.add_parser("export").set_defaults(f=cmd_export)
     sub.add_parser("demo").set_defaults(f=cmd_demo)

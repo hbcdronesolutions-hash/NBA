@@ -31,7 +31,7 @@ npm install
 npm run build
 ```
 
-Le dépôt contient déjà la base réelle (`data/pronos.sqlite` : 2022-23 à aujourd'hui, source ESPN) et les paramètres réglés par le backtest. `python -m pronos demo` reste disponible pour une ligue simulée.
+Le dépôt contient les paramètres réglés par le backtest sur données réelles (`data/params.json`) et le journal. La base (`data/pronos.sqlite`) se reconstruit avec `python -m pronos init` (~2 min). `python -m pronos demo` reste disponible pour une ligue simulée.
 
 ## Données réelles
 
@@ -49,6 +49,21 @@ Sur le téléphone : ouvrir l'adresse, puis **Partager → Sur l'écran d'accuei
 - Cotes : créer une clé gratuite sur the-odds-api.com, puis `export ODDS_API_KEY=...` (bookmaker préféré : `ODDS_BOOKMAKER=betclic`).
 - Sources : ESPN (calendrier, scores, box scores, cotes DraftKings) et rapport officiel des blessures NBA. stats.nba.com bloque les serveurs cloud ; ESPN non.
 - Automatisation : tâche planifiée (Planificateur de tâches Windows, `cron` sur Mac/Linux), par ex. `matin` à 9 h et `soir` à 18 h.
+
+## Mise à jour automatique (GitHub Actions)
+
+Le fichier `.github/workflows/pronos.yml` tourne tout seul, sans PC allumé :
+
+| Heure (Paris, hiver) | Ce qui se passe |
+|---|---|
+| 10h17 | Résultats de la nuit, calendrier, box scores, prévisions |
+| 17h47 | Rapport des blessures, cotes, prévisions mises à jour |
+| 23h37 | Dernier rapport des blessures avant les matchs |
+| Lundi 6h23 | Backtest et réglage des paramètres |
+
+À chaque passage : collecte (ESPN + rapport officiel NBA), prévisions, journal (`data/journal.csv`, versionné), construction de l'app et mise en ligne sur GitHub Pages. Une prévision peut être mise à jour jusqu'au coup d'envoi, puis elle est figée.
+
+Mise en place (une fois) : **Settings → Pages → Source : GitHub Actions**. Lancement manuel : onglet **Actions → Pronos NBA → Run workflow**. Clé The Odds API facultative : secret `ODDS_API_KEY`.
 
 ## Le modèle (fiche de conception V1)
 

@@ -1,6 +1,6 @@
 node_modules/
 app/dist/
-data/demo.sqlite
+data/*.sqlite
 __pycache__/
 .pytest_cache/
 *.pyc

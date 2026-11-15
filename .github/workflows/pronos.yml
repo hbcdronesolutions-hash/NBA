@@ -1,0 +1,96 @@
+name: Pronos NBA
+
+# Heures en UTC. Matin : résultats de la nuit. Après-midi et soir : blessures, cotes, prévisions.
+on:
+  schedule:
+    - cron: "17 9 * * *"    # 10h17 Paris (hiver)
+    - cron: "47 16 * * *"   # 17h47 Paris, avant les matchs du week-end
+    - cron: "37 22 * * *"   # 23h37 Paris, dernier rapport des blessures
+    - cron: "23 5 * * 1"    # lundi : backtest et réglage des paramètres
+  workflow_dispatch:
+    inputs:
+      backtest:
+        description: "Relancer aussi le backtest"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pronos
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: engine/requirements.txt
+
+      - name: Dépendances Python
+        run: pip install -r engine/requirements.txt
+
+      # La base SQLite est gardée en cache entre deux passages ; si elle disparaît,
+      # « auto » la reconstruit depuis ESPN (~2 min). Le journal, lui, est versionné.
+      - name: Base de données
+        uses: actions/cache@v4
+        with:
+          path: data/pronos.sqlite
+          key: pronos-db-${{ github.run_id }}
+          restore-keys: pronos-db-
+
+      - name: Collecte et prévisions
+        working-directory: engine
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python -m pronos auto
+
+      - name: Backtest hebdomadaire
+        if: github.event.schedule == '23 5 * * 1' || inputs.backtest
+        working-directory: engine
+        run: python -m pronos backtest
+
+      - name: Sauvegarde du journal
+        run: |
+          git config user.name "pronos-bot"
+          git config user.email "pronos-bot@users.noreply.github.com"
+          git add data/journal.csv data/params.json data/backtest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Journal des prévisions $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Construction de l'app
+        working-directory: app
+        run: npm ci && npm run build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

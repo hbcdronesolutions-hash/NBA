@@ -79,14 +79,14 @@ def game_payload(gid: str, tip_utc: str | None, pr: Prediction, odds: dict | Non
 
 
 def journal(con: sqlite3.Connection, games: list[dict], version: str) -> int:
-    """Enregistre chaque prévision avant le match ; jamais modifiée ensuite."""
+    """Enregistre la dernière prévision avant le match ; figée dès le coup d'envoi."""
     now = datetime.now(timezone.utc)
     n = 0
     for g in games:
         if g["tip_utc"] and datetime.fromisoformat(g["tip_utc"]) <= now:
             continue
         cur = con.execute(
-            "INSERT OR IGNORE INTO previsions VALUES (?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO previsions VALUES (?,?,?,?,?,?,?)",
             (g["id"], g["p_home"], g["spread"], json.dumps(g["factors"]), json.dumps(g["absences"]),
              version, now.isoformat(timespec="seconds")))
         n += cur.rowcount
@@ -132,9 +132,9 @@ def _prior_for(games: pd.DataFrame, season: str, p: R.Params) -> R.Ratings:
 def record_payload(con: sqlite3.Connection) -> dict:
     rows = con.execute("""
         SELECT p.match_id, m.date, m.domicile, m.exterieur, p.proba_dom, m.score_dom, m.score_ext,
-               (SELECT cote_dom FROM cotes c WHERE c.match_id = p.match_id AND c.releve <= p.enregistre
+               (SELECT cote_dom FROM cotes c WHERE c.match_id = p.match_id
                 ORDER BY releve DESC LIMIT 1) AS cote_dom,
-               (SELECT cote_ext FROM cotes c WHERE c.match_id = p.match_id AND c.releve <= p.enregistre
+               (SELECT cote_ext FROM cotes c WHERE c.match_id = p.match_id
                 ORDER BY releve DESC LIMIT 1) AS cote_ext
         FROM previsions p JOIN matchs m ON m.id = p.match_id ORDER BY m.date DESC, m.id""").fetchall()
     journal = [{
@@ -176,3 +176,24 @@ def copy_data_to_dist() -> None:
     src, dst = APP_DATA
     if src.exists() and dst.parent.exists():
         shutil.copytree(src, dst, dirs_exist_ok=True)
+
+
+JOURNAL_CSV = ROOT / "data" / "journal.csv"
+JOURNAL_COLS = ["match_id", "proba_dom", "ecart_dom", "corrections", "absents", "version", "enregistre"]
+
+
+def save_journal_csv(con: sqlite3.Connection, path: Path = JOURNAL_CSV) -> None:
+    """Le journal en texte (versionné dans le dépôt) : la base SQLite peut être reconstruite."""
+    df = pd.read_sql_query(f"SELECT {', '.join(JOURNAL_COLS)} FROM previsions ORDER BY enregistre, match_id", con)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False)
+
+
+def load_journal_csv(con: sqlite3.Connection, path: Path = JOURNAL_CSV) -> int:
+    if not path.exists():
+        return 0
+    df = pd.read_csv(path, dtype={"match_id": str}).fillna("")
+    con.executemany(f"INSERT OR IGNORE INTO previsions VALUES ({','.join('?' * len(JOURNAL_COLS))})",
+                    df[JOURNAL_COLS].itertuples(index=False, name=None))
+    con.commit()
+    return len(df)
