@@ -16,6 +16,7 @@ from .collect import ET, load_games, load_player_logs, season_of
 from .db import ROOT
 from .model import Prediction, predict
 from .players import absences_for, player_table
+from .props import forecasts
 
 APP_DATA = [ROOT / "app" / "public" / "data", ROOT / "app" / "dist" / "data"]
 PARAMS_FILE = ROOT / "data" / "params.json"
@@ -41,7 +42,8 @@ def tonight(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> tuple[p
     r = ratings_asof(games, day, p)
     season = season_of(day.date())
     sched = games[games["season"] == season]
-    players = player_table(load_player_logs(con, season), day)
+    plogs = load_player_logs(con, season)
+    players = player_table(plogs, day)
     inj = INJ.latest_for(con, day.date().isoformat())
     out = []
     for g in sched[sched["date"] == day].itertuples():
@@ -50,8 +52,10 @@ def tonight(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> tuple[p
         pr = predict(g.home, g.away, day, r, p, schedule=sched, absences=abs_)
         odds = con.execute("SELECT bookmaker, cote_dom, cote_ext FROM cotes WHERE match_id=? ORDER BY releve DESC LIMIT 1",
                            (g.id,)).fetchone()
-        out.append(game_payload(g.id, g.tip_utc, pr, dict(odds) if odds else None,
-                                (g.home_pts, g.away_pts) if pd.notna(g.home_pts) else None))
+        payload = game_payload(g.id, g.tip_utc, pr, dict(odds) if odds else None,
+                                (g.home_pts, g.away_pts) if pd.notna(g.home_pts) else None)
+        payload["players"] = forecasts(plogs, day, g.home, g.away, r, inj) if len(plogs) else []
+        out.append(payload)
     return day, out
 
 

@@ -241,7 +241,7 @@ def load_games(con: sqlite3.Connection) -> pd.DataFrame:
 
 def load_player_logs(con: sqlite3.Connection, season: str) -> pd.DataFrame:
     df = pd.read_sql_query("""
-        SELECT m.date, s.joueur_id AS player_id, j.nom AS name, s.equipe AS team, s.minutes,
+        SELECT m.date, s.match_id, s.joueur_id AS player_id, j.nom AS name, s.equipe AS team, s.minutes,
                s.pts, s.fgm, s.fga, s.ftm, s.fta, s.oreb, s.dreb, s.ast, s.stl, s.blk, s.tov, s.pf
         FROM stats_joueur_match s JOIN matchs m ON m.id = s.match_id
         LEFT JOIN joueurs j ON j.id = s.joueur_id WHERE m.saison = ?""", con, params=(season,))

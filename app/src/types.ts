@@ -15,6 +15,19 @@ export interface Absence {
   impact: number;
 }
 
+export interface PlayerForecast {
+  id: number;
+  name: string;
+  team: string;
+  status: string | null;
+  minutes: number;
+  pts: number;
+  reb: number;
+  ast: number;
+  pra: number;
+  sd: { pts: number; reb: number; ast: number; pra: number };
+}
+
 export interface Game {
   id: string;
   tip_utc: string | null;
@@ -32,6 +45,7 @@ export interface Game {
   divergence: boolean;
   verdict: Record<Side, Verdict>;
   result: { home: number; away: number } | null;
+  players?: PlayerForecast[];
 }
 
 export interface Today {

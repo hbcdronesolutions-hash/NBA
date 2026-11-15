@@ -2,6 +2,10 @@ import { ChevronLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { OddsPill, VERDICT_LABEL } from "../components/OddsPill";
 import { Loading } from "../components/Page";
+import { Segmented } from "../components/Segmented";
+import { PlayersTab } from "./PlayersTab";
+import { SpreadTab } from "./SpreadTab";
+import { useState } from "react";
 import { ProbBar } from "../components/ProbBar";
 import { TeamLogo } from "../components/TeamLogo";
 import { pick, useToday } from "../data";
@@ -24,12 +28,15 @@ export function Match() {
         <span className="time">{g ? tipTime(g.tip_utc) : ""}</span>
         <span style={{ width: 32 }} />
       </header>
-      {!g ? <Loading /> : <Detail g={g} />}
+      {!g ? <Loading /> : <Detail g={g} sigma={data?.sigma ?? 13.7} />}
     </main>
   );
 }
 
-function Detail({ g }: { g: Game }) {
+type Tab = "winner" | "spread" | "players";
+
+function Detail({ g, sigma }: { g: Game; sigma: number }) {
+  const [tab, setTab] = useState<Tab>("winner");
   const fav = pick(g);
   const sign = fav.side === "home" ? 1 : -1;
   const factors = mergeFactors(g.factors);
@@ -51,7 +58,22 @@ function Detail({ g }: { g: Game }) {
         )}
       </p>
 
-      <h2 className="section">Ce qui fait pencher</h2>
+      <div className="tabs-wrap">
+        <Segmented<Tab>
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "winner", label: "Vainqueur" },
+            { value: "spread", label: "Écart" },
+            { value: "players", label: "Joueurs" },
+          ]}
+        />
+      </div>
+      {tab === "spread" && <SpreadTab g={g} sigma={sigma} />}
+      {tab === "players" && <PlayersTab g={g} />}
+      {tab === "winner" && (
+        <>
+      <h2 className="section first">Ce qui fait pencher</h2>
       <div className="card list">
         {factors.map((f) => {
           const v = f.points * sign; // positif = pousse vers le favori
@@ -106,6 +128,8 @@ function Detail({ g }: { g: Game }) {
         <span className="pill pill-gris"><span className="pill-dot" /></span> ne pas miser
         <span className="pill pill-orange"><span className="pill-dot" /></span> à vérifier
       </p>
+        </>
+      )}
     </>
   );
 }

@@ -10,7 +10,7 @@ Probabilité de victoire de chaque équipe pour les matchs NBA de la nuit, expli
 | Onglet | Contenu |
 |---|---|
 | **Ce soir** | Matchs de la nuit (heure française), probabilité de chaque équipe, cote minimum colorée, repère des bookmakers sur la barre, alerte quand l'écart dépasse 5 points de %. |
-| Détail d'un match | Écart prévu, ce qui fait pencher (force, terrain, repos, déplacement, absents), absents, cotes (minimum, équilibre, bookmaker). |
+| Détail d'un match | 3 onglets. **Vainqueur** : écart prévu, ce qui fait pencher, absents, cotes. **Écart** : « gagne de X ou + » (1 à 15 pts) pour chaque équipe, probabilité et cote minimum. **Joueurs** : prévision points / rebonds / passes / P+R+P, puis « plus de / moins de » pour chaque ligne, probabilité et cote minimum. |
 | **Sélection** | Matchs au-dessus du seuil (curseur 60–80 %, 70 % par défaut), badges Très sûr / Sûr / Correct, probabilité « tous justes », cote minimum du combiné si toutes les pastilles sont vertes. |
 | **Forces** | Les 30 équipes : note nette, attaque, défense, évolution sur 15 matchs. |
 | **Bilan** | Réussite globale et sur 7 jours, calibration, face aux bookmakers, référence backtest, journal complet. |
@@ -73,6 +73,8 @@ Mise en place (une fois) : **Settings → Pages → Source : GitHub Actions**. L
 4. Croisement Four Factors : retiré (n'apporte rien au backtest).
 5. **Probabilité** : loi normale, écart-type 13,7 points.
 
-Cote minimum = (1 + 5 %) ÷ probabilité, arrondie au centième supérieur. Chaque prévision est enregistrée avant le match et n'est jamais modifiée.
+Cote minimum = (1 + marge) ÷ probabilité, arrondie au centième supérieur ; marge 5 % (vainqueur, écart), 10 % (joueurs).
+
+Joueurs (section 9) : minutes attendues (10 derniers matchs) × rendement par minute, corrigé par l'adversaire (élasticité 0,72), le rythme du match et les coéquipiers absents (+35 % de la part absente). Dispersion tirée de l'historique du joueur. Chaque prévision est enregistrée avant le match et n'est jamais modifiée.
 
 Tests : `cd engine && pytest`.
