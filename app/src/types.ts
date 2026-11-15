@@ -40,7 +40,15 @@ export interface Game {
   absences: Absence[];
   min_odds: Record<Side, number>;
   fair_odds: Record<Side, number>;
-  odds: { book: string; home: number; away: number } | null;
+  odds: {
+    book: string;
+    home: number;
+    away: number;
+    book_home?: string;
+    book_away?: string;
+    french?: boolean;
+    books?: { book: string; home: number; away: number }[];
+  } | null;
   p_book_home: number | null;
   divergence: boolean;
   verdict: Record<Side, Verdict>;

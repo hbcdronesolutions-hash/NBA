@@ -47,7 +47,7 @@ python -m pronos serve       # affiche l'adresse à ouvrir sur le téléphone (m
 
 Sur le téléphone : ouvrir l'adresse, puis **Partager → Sur l'écran d'accueil** (iPhone) ou **Installer l'application** (Android).
 
-- Cotes : créer une clé gratuite sur the-odds-api.com, puis `export ODDS_API_KEY=...` (bookmaker préféré : `ODDS_BOOKMAKER=betclic`).
+- Cotes françaises (Betclic, Unibet, Winamax, PMU, Parions Sport, NetBet) : clé gratuite sur the-odds-api.com, puis `export ODDS_API_KEY=...` (ou secret GitHub `ODDS_API_KEY`). L'app prend la meilleure cote française par équipe ; sans clé, cotes DraftKings via ESPN.
 - Sources : ESPN (calendrier, scores, box scores, cotes DraftKings) et rapport officiel des blessures NBA. stats.nba.com bloque les serveurs cloud ; ESPN non.
 - Automatisation : tâche planifiée (Planificateur de tâches Windows, `cron` sur Mac/Linux), par ex. `matin` à 9 h et `soir` à 18 h.
 

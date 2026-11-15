@@ -86,3 +86,20 @@ Toronto Raptors Jackson Jr., Jaren Doubtful Injury/Illness - Back
         ("TOR", "Jackson Jr., Jaren", "Doubtful"),
     ]
     assert rows[0]["date"] == "2026-11-15"
+
+
+def test_french_books_preferred_and_best_odds(tmp_path):
+    from pronos.db import connect
+    from pronos.service import match_odds
+
+    con = connect(tmp_path / "t.sqlite")
+    con.executemany("INSERT INTO cotes VALUES (?,?,?,?,?)", [
+        ("m1", "DraftKings", 1.50, 2.80, "2026-11-15T10:00:00+00:00"),
+        ("m1", "Betclic (FR)", 1.55, 2.40, "2026-11-15T09:00:00+00:00"),
+        ("m1", "Betclic (FR)", 1.58, 2.35, "2026-11-15T12:00:00+00:00"),
+        ("m1", "Winamax (FR)", 1.52, 2.50, "2026-11-15T12:00:00+00:00"),
+    ])
+    o = match_odds(con, "m1")
+    assert o["french"] and len(o["books"]) == 2
+    assert (o["home"], o["book_home"]) == (1.58, "Betclic")
+    assert (o["away"], o["book_away"]) == (2.50, "Winamax")

@@ -181,33 +181,43 @@ def store_schedule(con: sqlite3.Connection, games: list[dict]) -> int:
 
 # ----------------------------------------------------------------------------- cotes
 
-def fetch_odds(api_key: str | None = None, bookmaker: str | None = None) -> list[dict]:
-    """Cotes vainqueur via The Odds API (offre gratuite : 500 requêtes / mois)."""
+FRENCH_BOOKS = ("betclic_fr", "unibet_fr", "winamax_fr", "pmu_fr", "parionssport_fr", "netbet_fr")
+
+
+def fetch_odds(api_key: str | None = None) -> list[dict]:
+    """Cotes vainqueur des bookmakers français via The Odds API (région « fr »).
+
+    Une ligne par bookmaker et par match. Offre gratuite : 500 requêtes / mois (1 par appel ici).
+    """
     import requests
 
     api_key = api_key or os.environ.get("ODDS_API_KEY")
     if not api_key:
         return []
-    bookmaker = bookmaker or os.environ.get("ODDS_BOOKMAKER", "betclic")
     resp = requests.get(ODDS_URL, params={
-        "apiKey": api_key, "regions": "eu,fr", "markets": "h2h", "oddsFormat": "decimal",
+        "apiKey": api_key, "regions": "fr", "markets": "h2h", "oddsFormat": "decimal",
     }, timeout=30)
     resp.raise_for_status()
+    print(f"The Odds API : {resp.headers.get('x-requests-remaining', '?')} requêtes restantes ce mois-ci")
     out = []
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for ev in resp.json():
         home, away = from_full_name(ev["home_team"]), from_full_name(ev["away_team"])
-        books = ev.get("bookmakers", [])
-        chosen = next((b for b in books if b["key"] == bookmaker), books[0] if books else None)
-        if not chosen or not home or not away:
+        if not home or not away:
             continue
-        prices = {o["name"]: o["price"] for o in chosen["markets"][0]["outcomes"]}
-        out.append({
-            "home": home, "away": away, "bookmaker": chosen["title"],
-            "odds_home": prices.get(ev["home_team"]), "odds_away": prices.get(ev["away_team"]),
-            "date": datetime.fromisoformat(ev["commence_time"].replace("Z", "+00:00")).astimezone(ET).date().isoformat(),
-            "releve": now,
-        })
+        day = datetime.fromisoformat(ev["commence_time"].replace("Z", "+00:00")).astimezone(ET).date().isoformat()
+        for bk in ev.get("bookmakers", []):
+            if bk["key"] not in FRENCH_BOOKS:
+                continue
+            market = next((m for m in bk.get("markets", []) if m["key"] == "h2h"), None)
+            if not market:
+                continue
+            prices = {o["name"]: o["price"] for o in market["outcomes"]}
+            out.append({
+                "home": home, "away": away, "date": day, "releve": now,
+                "bookmaker": bk["title"].replace(" (FR)", "") + " (FR)",
+                "odds_home": prices.get(ev["home_team"]), "odds_away": prices.get(ev["away_team"]),
+            })
     return out
 
 

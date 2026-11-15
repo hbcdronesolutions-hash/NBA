@@ -50,13 +50,35 @@ def tonight(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> tuple[p
         pace = r.team(g.home)["pace"] * r.team(g.away)["pace"] / r.league_pace
         abs_ = absences_for(g.home, inj, players, pace) + absences_for(g.away, inj, players, pace) if len(players) else []
         pr = predict(g.home, g.away, day, r, p, schedule=sched, absences=abs_)
-        odds = con.execute("SELECT bookmaker, cote_dom, cote_ext FROM cotes WHERE match_id=? ORDER BY releve DESC LIMIT 1",
-                           (g.id,)).fetchone()
-        payload = game_payload(g.id, g.tip_utc, pr, dict(odds) if odds else None,
+        payload = game_payload(g.id, g.tip_utc, pr, match_odds(con, g.id),
                                 (g.home_pts, g.away_pts) if pd.notna(g.home_pts) else None)
         payload["players"] = forecasts(plogs, day, g.home, g.away, r, inj) if len(plogs) else []
         out.append(payload)
     return day, out
+
+
+def match_odds(con: sqlite3.Connection, gid: str) -> dict | None:
+    """Dernière cote de chaque bookmaker ; bookmakers français en priorité, meilleure cote par équipe."""
+    rows = con.execute("""SELECT bookmaker, cote_dom, cote_ext FROM cotes c WHERE match_id = ?
+        AND releve = (SELECT MAX(releve) FROM cotes c2 WHERE c2.match_id = c.match_id AND c2.bookmaker = c.bookmaker)""",
+                       (gid,)).fetchall()
+    rows = [r for r in rows if r["cote_dom"] and r["cote_ext"]]
+    french = [r for r in rows if r["bookmaker"].endswith("(FR)")]
+    rows = french or rows
+    if not rows:
+        return None
+    name = lambda r: r["bookmaker"].replace(" (FR)", "")
+    bh = max(rows, key=lambda r: r["cote_dom"])
+    ba = max(rows, key=lambda r: r["cote_ext"])
+    # Probabilité des bookmakers : moyenne des probabilités implicites (marges retirées).
+    pb = sum(B.book_probability(r["cote_dom"], r["cote_ext"]) for r in rows) / len(rows)
+    return {
+        "home": bh["cote_dom"], "away": ba["cote_ext"], "book_home": name(bh), "book_away": name(ba),
+        "book": name(bh) if len(rows) == 1 else "Meilleure cote",
+        "p_book_home": pb, "french": bool(french),
+        "books": sorted(({"book": name(r), "home": r["cote_dom"], "away": r["cote_ext"]} for r in rows),
+                        key=lambda x: x["book"]),
+    }
 
 
 def game_payload(gid: str, tip_utc: str | None, pr: Prediction, odds: dict | None, result) -> dict:
@@ -70,14 +92,14 @@ def game_payload(gid: str, tip_utc: str | None, pr: Prediction, odds: dict | Non
         "verdict": {"home": "aucune", "away": "aucune"},
         "result": {"home": int(result[0]), "away": int(result[1])} if result else None,
     })
-    if odds and odds.get("cote_dom") and odds.get("cote_ext"):
-        pb = B.book_probability(odds["cote_dom"], odds["cote_ext"])
+    if odds:
+        pb = odds.pop("p_book_home")
         d.update({
-            "odds": {"book": odds["bookmaker"], "home": odds["cote_dom"], "away": odds["cote_ext"]},
+            "odds": odds,
             "p_book_home": round(pb, 4),
             "divergence": abs(pb - ph) > B.DIVERGENCE,
-            "verdict": {"home": B.verdict(odds["cote_dom"], d["min_odds"]["home"]),
-                        "away": B.verdict(odds["cote_ext"], d["min_odds"]["away"])},
+            "verdict": {"home": B.verdict(odds["home"], d["min_odds"]["home"]),
+                        "away": B.verdict(odds["away"], d["min_odds"]["away"])},
         })
     return d
 
@@ -134,8 +156,14 @@ def _prior_for(games: pd.DataFrame, season: str, p: R.Params) -> R.Ratings:
 
 
 def _latest_odds(con: sqlite3.Connection) -> dict[str, tuple[float, float]]:
-    rows = con.execute("SELECT match_id, cote_dom, cote_ext FROM cotes ORDER BY releve").fetchall()
-    return {r["match_id"]: (r["cote_dom"], r["cote_ext"]) for r in rows}
+    """Pour le bilan : meilleure cote par équipe, bookmakers français en priorité."""
+    ids = [r[0] for r in con.execute("SELECT DISTINCT match_id FROM cotes")]
+    out = {}
+    for gid in ids:
+        o = match_odds(con, gid)
+        if o:
+            out[gid] = (o["home"], o["away"])
+    return out
 
 
 def replay_season(games: pd.DataFrame, season: str, p: R.Params) -> pd.DataFrame:

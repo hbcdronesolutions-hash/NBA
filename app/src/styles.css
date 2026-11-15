@@ -836,3 +836,9 @@ input[type="range"]::-moz-range-thumb {
 .bets-val { font-size: 24px; font-weight: 750; letter-spacing: -0.03em; }
 .bets-val.pos { color: var(--green); }
 .bets-val.neg { color: var(--red); }
+.books { margin-top: 12px; }
+.books-row { display: grid; grid-template-columns: 1fr 64px 64px; align-items: center; padding: 10px 0; font-size: 15px; font-weight: 600; text-align: right; }
+.books-row > :first-child { text-align: left; }
+.books-head { padding: 10px 0 6px; justify-items: end; }
+.books-name { color: var(--ink-2); font-weight: 550; }
+.books-row .is-best { color: var(--green); font-weight: 750; }

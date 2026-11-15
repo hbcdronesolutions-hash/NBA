@@ -123,6 +123,23 @@ function Detail({ g, sigma }: { g: Game; sigma: number }) {
           <OddsCard key={s} g={g} side={s} />
         ))}
       </div>
+      {g.odds?.books && g.odds.books.length > 1 && (
+        <div className="card list books">
+          <div className="books-row books-head">
+            <span />
+            <TeamLogo abbr={g.away} size={20} />
+            <TeamLogo abbr={g.home} size={20} />
+          </div>
+          {g.odds.books.map((b) => (
+            <div key={b.book} className="books-row">
+              <span className="books-name">{b.book}</span>
+              <span className={b.away === g.odds!.away ? "is-best" : ""}>{odds(b.away)}</span>
+              <span className={b.home === g.odds!.home ? "is-best" : ""}>{odds(b.home)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {g.odds && g.odds.french === false && <p className="note">Cotes françaises indisponibles : cotes américaines (DraftKings) affichées.</p>}
       <p className="legend">
         <span className="pill pill-vert"><span className="pill-dot" /></span> cote ≥ minimum
         <span className="pill pill-gris"><span className="pill-dot" /></span> ne pas miser
@@ -164,7 +181,7 @@ function OddsCard({ g, side }: { g: Game; side: Side }) {
         </dd>
         <dt>Équilibre</dt>
         <dd>{odds(g.fair_odds[side])}</dd>
-        <dt>{g.odds?.book ?? "Bookmaker"}</dt>
+        <dt>{(side === "home" ? g.odds?.book_home : g.odds?.book_away) ?? g.odds?.book ?? "Bookmaker"}</dt>
         <dd>{book ? odds(book) : "—"}</dd>
       </dl>
       <span className={`verdict verdict-${v}`}>{VERDICT_LABEL[v]}</span>
