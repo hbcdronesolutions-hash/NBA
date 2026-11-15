@@ -905,3 +905,18 @@ input[type="range"]::-moz-range-thumb {
 }
 .home-icon { display: inline-block; margin-left: 6px; vertical-align: -1px; color: var(--muted); }
 .hero-name { display: inline-flex; align-items: center; }
+
+/* --------------------------------------- ce qui fait pencher (v2) */
+.factor-intro { margin: -2px 4px 10px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.factor-intro b { color: var(--ink); }
+.factor { display: flex; grid-template-columns: none; align-items: flex-start; gap: 14px; padding: 13px 0; }
+.factor-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.factor-main .factor-label { font-size: 15px; font-weight: 650; }
+.factor-detail { font-size: 12.5px; line-height: 1.35; color: var(--muted); }
+.factor-main .factor-bar { position: static; height: 5px; margin-top: 5px; border-radius: 99px; background: var(--seg-muted); overflow: hidden; }
+.factor-main .factor-bar span { display: block; height: 100%; border-radius: 99px; }
+.factor-side { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 76px; }
+.factor-side .factor-val { font-size: 17px; font-weight: 750; }
+.factor-who { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.factor-total { align-items: center; }
+.factor-total .factor-label { flex: 1; font-size: 15px; font-weight: 750; }

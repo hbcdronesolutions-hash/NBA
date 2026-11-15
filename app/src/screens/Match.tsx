@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ProbBar } from "../components/ProbBar";
 import { TeamLogo } from "../components/TeamLogo";
 import { pick, useToday } from "../data";
-import { num1, odds, pct, signed, tipTime } from "../format";
+import { num1, odds, pct, tipTime } from "../format";
 import { team } from "../teams";
 import type { Factor, Game, Side } from "../types";
 
@@ -38,7 +38,6 @@ type Tab = "winner" | "spread" | "players";
 function Detail({ g, sigma }: { g: Game; sigma: number }) {
   const [tab, setTab] = useState<Tab>("winner");
   const fav = pick(g);
-  const sign = fav.side === "home" ? 1 : -1;
   const factors = mergeFactors(g.factors);
   const maxAbs = Math.max(2, ...factors.map((f) => Math.abs(f.points)));
   return (
@@ -74,31 +73,45 @@ function Detail({ g, sigma }: { g: Game; sigma: number }) {
       {tab === "winner" && (
         <>
       <h2 className="section first">Ce qui fait pencher</h2>
+      <p className="factor-intro">
+        Le modèle additionne ces éléments, en points d'écart au score final. Résultat :{" "}
+        <b>
+          {team(fav.abbr).name} par {num1(Math.abs(g.spread))} pts
+        </b>
+        .
+      </p>
       <div className="card list">
         {factors.map((f) => {
-          const v = f.points * sign; // positif = pousse vers le favori
-          const tone = v >= 0 ? team(fav.abbr).color : team(fav.side === "home" ? g.away : g.home).color;
+          const who = f.points >= 0 ? g.home : g.away; // équipe avantagée par cette ligne
           return (
             <div key={f.key + (f.team ?? "")} className="factor">
-              <span className="factor-label">
-                {f.team && <TeamLogo abbr={f.team} size={18} />}
-                {f.label}
-              </span>
-              <span className="factor-bar">
-                <span className="axis" />
-                <span
-                  className="fill"
-                  style={{
-                    background: tone,
-                    width: `${(Math.abs(v) / maxAbs) * 50}%`,
-                    [v >= 0 ? "left" : "right"]: "50%",
-                  }}
-                />
-              </span>
-              <span className="factor-val">{signed(v)}</span>
+              <div className="factor-main">
+                <span className="factor-label">{f.label}</span>
+                {f.detail && <span className="factor-detail">{f.detail}</span>}
+                <span className="factor-bar">
+                  <span style={{ width: `${(Math.abs(f.points) / maxAbs) * 100}%`, background: team(who).color }} />
+                </span>
+              </div>
+              <div className="factor-side">
+                <span className="factor-val">+{num1(Math.abs(f.points))}</span>
+                <span className="factor-who">
+                  <TeamLogo abbr={who} size={16} />
+                  {team(who).name}
+                </span>
+              </div>
             </div>
           );
         })}
+        <div className="factor factor-total">
+          <span className="factor-label">Écart prévu</span>
+          <div className="factor-side">
+            <span className="factor-val">+{num1(Math.abs(g.spread))}</span>
+            <span className="factor-who">
+              <TeamLogo abbr={fav.abbr} size={16} />
+              {team(fav.abbr).name}
+            </span>
+          </div>
+        </div>
       </div>
 
       {g.absences.length > 0 && (

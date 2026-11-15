@@ -6,6 +6,7 @@ export interface Factor {
   label: string;
   points: number; // point de vue de l'équipe à domicile
   team: string | null;
+  detail?: string;
 }
 
 export interface Absence {

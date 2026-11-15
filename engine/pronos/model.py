@@ -31,6 +31,7 @@ class Factor:
     label: str
     points: float          # du point de vue de l'équipe à domicile
     team: str | None = None
+    detail: str = ""       # explication en clair, propre au match
 
 
 @dataclass
@@ -103,30 +104,47 @@ def predict(home: str, away: str, day: pd.Timestamp, r: Ratings, p: Params,
     lg = r.league_ortg
     home_pts = (th["off"] + ta["def"] - lg) * pace / 100
     away_pts = (ta["off"] + th["def"] - lg) * pace / 100
-    factors = [Factor("force", "Force des équipes", home_pts - away_pts)]
+    nick = lambda a: TEAMS[a].name
+    ranks = {a: i + 1 for i, a in enumerate(sorted(TEAMS, key=lambda a: -r.team(a)["net"]))}
+    rank_txt = lambda a: "1er" if ranks[a] == 1 else f"{ranks[a]}e"
+    factors = [Factor(
+        "force", "Niveau des équipes cette saison", home_pts - away_pts, None,
+        f"{nick(home)} {rank_txt(home)} de la ligue, {nick(away)} {rank_txt(away)} "
+        f"(points marqués et encaissés, adversaires pris en compte)")]
 
     # Étage 3 — contexte du match.
     if use_context:
-        factors.append(Factor("terrain", "Avantage du terrain", p.hca, home))
+        factors.append(Factor("terrain", "Avantage du terrain", p.hca, home,
+                              f"{nick(home)} jouent à domicile"))
         if home in ALTITUDE_TEAMS:
-            factors.append(Factor("altitude", "Altitude", p.altitude, home))
+            factors.append(Factor("altitude", "Altitude", p.altitude, home,
+                                  f"Salle en altitude : plus dur pour les {nick(away)}"))
         if schedule is not None:
             for team, sign in ((home, 1), (away, -1)):
                 c = team_context(schedule, team, day, home)
                 if c.b2b:
-                    factors.append(Factor("veille", "Match la veille", sign * p.b2b, team))
+                    factors.append(Factor("veille", "Fatigue : match la veille", sign * p.b2b, team,
+                                          f"{nick(team)} ont joué hier soir"))
                 if c.three_in_four:
-                    factors.append(Factor("3en4", "3 matchs en 4 jours", sign * p.three_in_four, team))
+                    factors.append(Factor("3en4", "Fatigue : 3 matchs en 4 jours", sign * p.three_in_four, team,
+                                          f"{nick(team)} enchaînent leur 3e match en 4 jours"))
                 travel = c.km / 1000 * p.travel_per_1000km + c.tz_hours * p.tz_per_hour
                 if abs(travel) >= 0.05:
-                    factors.append(Factor("voyage", "Déplacement", sign * travel, team))
+                    tz = f", {c.tz_hours:.0f} h de décalage horaire" if c.tz_hours >= 1 else ""
+                    factors.append(Factor("voyage", "Voyage", sign * travel, team,
+                                          f"{nick(team)} : {c.km:,.0f} km depuis leur dernier match{tz}".replace(",", " ", 1)
+                                          if c.km >= 1000 else
+                                          f"{nick(team)} : {c.km:.0f} km depuis leur dernier match{tz}"))
 
     # Étage 2 — effectif du soir (version simplifiée : on retire l'impact des absents).
     absences = absences or []
     for team, sign in ((home, 1), (away, -1)):
         lost = sum(a.impact for a in absences if a.team == team)
         if lost:
-            factors.append(Factor("absents", "Absents", -sign * lost, team))
+            STATUS_FR = {"out": "absent", "doubtful": "douteux", "questionable": "incertain"}
+            names = ", ".join(f"{a.player.split(' ', 1)[-1]} ({STATUS_FR.get(a.status.lower(), a.status)})"
+                              for a in absences if a.team == team)
+            factors.append(Factor("absents", "Joueurs absents", -sign * lost, team, f"{nick(team)} sans {names}"))
 
     spread = sum(f.points for f in factors)
     return Prediction(home, away, spread, win_prob(spread, p.sigma), pace, factors, absences)
