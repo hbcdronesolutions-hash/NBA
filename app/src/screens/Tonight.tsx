@@ -1,4 +1,4 @@
-import { Moon } from "lucide-react";
+import { House, Moon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { NightPickCard } from "../components/NightPickCard";
 import { OddsPill } from "../components/OddsPill";
@@ -40,8 +40,8 @@ function GameCard({ g }: { g: Game }) {
         {g.divergence && <span className="flag">Écart bookmakers</span>}
         {g.result && <span className="final">Terminé</span>}
       </div>
-      <Row g={g} side="away" fav={!favHome} />
       <Row g={g} side="home" fav={favHome} />
+      <Row g={g} side="away" fav={!favHome} />
       <ProbBar away={g.away} home={g.home} pHome={g.p_home} pBookHome={g.p_book_home} divergence={g.divergence} />
     </Link>
   );
@@ -54,7 +54,10 @@ function Row({ g, side, fav }: { g: Game; side: Side; fav: boolean }) {
   return (
     <div className={`game-row${fav ? " is-fav" : ""}`}>
       <TeamLogo abbr={abbr} size={36} />
-      <span className="team-name">{team(abbr).name}</span>
+      <span className="team-name">
+        {team(abbr).name}
+        {side === "home" && <House size={13} className="home-icon" aria-label="à domicile" />}
+      </span>
       {score != null ? <span className="score">{score}</span> : <OddsPill value={g.min_odds[side]} verdict={g.verdict[side]} />}
       <span className="prob">
         {pct(p)}

@@ -17,7 +17,7 @@ const STATS: { value: Stat; label: string; long: string }[] = [
 ];
 
 export function PlayersTab({ g }: { g: Game }) {
-  const [side, setSide] = useState<"home" | "away">("away");
+  const [side, setSide] = useState<"home" | "away">("home");
   const [open, setOpen] = useState<number | null>(null);
   const abbr = side === "home" ? g.home : g.away;
   const players = (g.players ?? []).filter((p) => p.team === abbr);
@@ -25,7 +25,7 @@ export function PlayersTab({ g }: { g: Game }) {
   return (
     <>
       <div className="team-toggle">
-        {(["away", "home"] as const).map((s) => {
+        {(["home", "away"] as const).map((s) => {
           const a = s === "home" ? g.home : g.away;
           return (
             <button key={s} className={side === s ? "is-active" : ""} onClick={() => { setSide(s); setOpen(null); }}>

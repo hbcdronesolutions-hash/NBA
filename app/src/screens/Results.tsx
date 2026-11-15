@@ -1,5 +1,5 @@
 import { ListChecks } from "lucide-react";
-import { Check, Sparkles, X } from "lucide-react";
+import { Check, House, Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Empty, Loading, Page } from "../components/Page";
 import { TeamLogo } from "../components/TeamLogo";
@@ -105,8 +105,8 @@ function ResultCard({ e, nightPick, rank }: { e: JournalEntry; nightPick?: boole
     <div className="card result">
       {rank && <span className="result-rank">{rank === 1 ? "Le plus sûr" : `${rank}e plus sûr`}</span>}
       <div className={`result-mark ${hit ? "ok" : "ko"}`}>{hit ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}</div>
-      <Row e={e} side="away" pick={pick} />
       <Row e={e} side="home" pick={pick} />
+      <Row e={e} side="away" pick={pick} />
       {nightPick && (() => {
         const np = nightPickFor(e.p_home, e.odds![0], e.odds![1])!;
         const won = (np.side === "home") === (e.home_win === 1);
@@ -141,7 +141,10 @@ function Row({ e, side, pick }: { e: JournalEntry; side: Side; pick: Side }) {
   return (
     <div className={`result-row${won ? " is-winner" : ""}`}>
       <TeamLogo abbr={abbr} size={30} dim={!won} />
-      <span className="team-name">{team(abbr).name}</span>
+      <span className="team-name">
+        {team(abbr).name}
+        {side === "home" && <House size={13} className="home-icon" aria-label="à domicile" />}
+      </span>
       {pick === side && <span className="result-pick">Prono {pct(p)} %</span>}
       <span className="result-pts">{pts ?? "—"}</span>
     </div>

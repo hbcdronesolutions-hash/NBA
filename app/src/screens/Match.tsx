@@ -1,4 +1,4 @@
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, House } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { OddsPill, VERDICT_LABEL } from "../components/OddsPill";
 import { Loading } from "../components/Page";
@@ -44,9 +44,9 @@ function Detail({ g, sigma }: { g: Game; sigma: number }) {
   return (
     <>
       <section className="hero">
+        <HeroTeam abbr={g.home} p={g.p_home} fav={fav.side === "home"} home />
+        <span className="hero-at">vs</span>
         <HeroTeam abbr={g.away} p={1 - g.p_home} fav={fav.side === "away"} />
-        <span className="hero-at">@</span>
-        <HeroTeam abbr={g.home} p={g.p_home} fav={fav.side === "home"} />
       </section>
       <ProbBar away={g.away} home={g.home} pHome={g.p_home} pBookHome={g.p_book_home} divergence={g.divergence} height={8} />
       <p className="spread">
@@ -119,7 +119,7 @@ function Detail({ g, sigma }: { g: Game; sigma: number }) {
 
       <h2 className="section">Cotes</h2>
       <div className="odds-grid">
-        {(["away", "home"] as Side[]).map((s) => (
+        {(["home", "away"] as Side[]).map((s) => (
           <OddsCard key={s} g={g} side={s} />
         ))}
       </div>
@@ -127,14 +127,14 @@ function Detail({ g, sigma }: { g: Game; sigma: number }) {
         <div className="card list books">
           <div className="books-row books-head">
             <span />
-            <TeamLogo abbr={g.away} size={20} />
             <TeamLogo abbr={g.home} size={20} />
+            <TeamLogo abbr={g.away} size={20} />
           </div>
           {g.odds.books.map((b) => (
             <div key={b.book} className="books-row">
               <span className="books-name">{b.book}</span>
-              <span className={b.away === g.odds!.away ? "is-best" : ""}>{odds(b.away)}</span>
               <span className={b.home === g.odds!.home ? "is-best" : ""}>{odds(b.home)}</span>
+              <span className={b.away === g.odds!.away ? "is-best" : ""}>{odds(b.away)}</span>
             </div>
           ))}
         </div>
@@ -151,11 +151,14 @@ function Detail({ g, sigma }: { g: Game; sigma: number }) {
   );
 }
 
-function HeroTeam({ abbr, p, fav }: { abbr: string; p: number; fav: boolean }) {
+function HeroTeam({ abbr, p, fav, home }: { abbr: string; p: number; fav: boolean; home?: boolean }) {
   return (
     <div className={`hero-team${fav ? " is-fav" : ""}`}>
       <TeamLogo abbr={abbr} size={76} />
-      <span className="hero-name">{team(abbr).name}</span>
+      <span className="hero-name">
+        {team(abbr).name}
+        {home && <House size={13} className="home-icon" aria-label="à domicile" />}
+      </span>
       <span className="hero-prob">
         {pct(p)}
         <small>%</small>

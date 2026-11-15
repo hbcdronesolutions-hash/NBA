@@ -20,7 +20,7 @@ export function SpreadTab({ g, sigma }: { g: Game; sigma: number }) {
   return (
     <>
       <div className="team-toggle">
-        {(["away", "home"] as const).map((s) => {
+        {(["home", "away"] as const).map((s) => {
           const a = s === "home" ? g.home : g.away;
           return (
             <button key={s} className={side === s ? "is-active" : ""} onClick={() => setSide(s)}>

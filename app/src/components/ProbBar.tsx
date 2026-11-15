@@ -1,6 +1,6 @@
 import { team } from "../teams";
 
-/** Barre partagée : extérieur à gauche, domicile à droite. Repère fin = bookmakers. */
+/** Barre partagée : domicile à gauche, extérieur à droite. Repère fin = bookmakers. */
 export function ProbBar({
   away,
   home,
@@ -22,16 +22,16 @@ export function ProbBar({
     <div className="probbar" style={{ height }}>
       <div
         className="probbar-seg"
-        style={{ width: `${awayW}%`, background: favHome ? "var(--seg-muted)" : team(away).color }}
+        style={{ width: `${100 - awayW}%`, background: favHome ? team(home).color : "var(--seg-muted)" }}
       />
       <div
         className="probbar-seg"
-        style={{ width: `${100 - awayW}%`, background: favHome ? team(home).color : "var(--seg-muted)" }}
+        style={{ width: `${awayW}%`, background: favHome ? "var(--seg-muted)" : team(away).color }}
       />
       {pBookHome != null && (
         <div
           className={`probbar-tick${divergence ? " is-alert" : ""}`}
-          style={{ left: `${(1 - pBookHome) * 100}%` }}
+          style={{ left: `${pBookHome * 100}%` }}
           title="Bookmakers"
         />
       )}

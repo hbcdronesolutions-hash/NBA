@@ -903,3 +903,5 @@ input[type="range"]::-moz-range-thumb {
   text-transform: uppercase;
   color: var(--muted);
 }
+.home-icon { display: inline-block; margin-left: 6px; vertical-align: -1px; color: var(--muted); }
+.hero-name { display: inline-flex; align-items: center; }
