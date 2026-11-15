@@ -6,6 +6,7 @@
     python -m pronos backtest    # rejoue les saisons passées, règle les paramètres
     python -m pronos export      # régénère les fichiers de l'app
     python -m pronos demo        # ligue simulée pour essayer l'app
+    python -m pronos video       # vidéo du prono le plus sûr du soir (captures + voix off)
     python -m pronos serve       # sert l'app sur le réseau local (téléphone sur le même Wi-Fi)
 """
 from __future__ import annotations
@@ -171,6 +172,11 @@ def cmd_demo(args) -> None:
     print("Données de démonstration écrites dans app/public/data/")
 
 
+def cmd_video(args) -> None:
+    from .video import make
+    make(args.match, args.voix)
+
+
 def cmd_serve(args) -> None:
     dist = ROOT / "app" / "dist"
     if not dist.exists():
@@ -192,6 +198,9 @@ def main() -> None:
     sub.add_parser("backtest").set_defaults(f=cmd_backtest)
     sub.add_parser("export").set_defaults(f=cmd_export)
     sub.add_parser("demo").set_defaults(f=cmd_demo)
+    p = sub.add_parser("video", help="vidéo du prono le plus sûr du soir")
+    p.add_argument("--match", default=None); p.add_argument("--voix", default="edge", choices=["edge", "espeak", "aucune"])
+    p.set_defaults(f=cmd_video)
     p = sub.add_parser("serve"); p.add_argument("--port", type=int, default=8501); p.set_defaults(f=cmd_serve)
     args = ap.parse_args()
     args.f(args)

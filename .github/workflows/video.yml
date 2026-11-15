@@ -1,0 +1,66 @@
+name: Vidéo du prono
+
+# Vidéo verticale (1080×1920) du prono le plus sûr du soir, avec voix off.
+# Téléchargement : onglet Actions → « Vidéo du prono » → dernier passage → Artifacts.
+on:
+  schedule:
+    - cron: "23 17 * * *"   # 18h23 Paris (hiver), après le rapport des blessures de l'après-midi
+  workflow_dispatch:
+    inputs:
+      match:
+        description: "Identifiant du match (vide = le plus sûr du soir)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: engine/requirements.txt
+
+      - name: Outils (ffmpeg, police Inter, navigateur, voix)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ffmpeg fonts-inter espeak-ng
+          pip install -r engine/requirements.txt playwright edge-tts
+          python -m playwright install --with-deps chromium
+
+      - name: Base de données (dernière version, lecture seule)
+        uses: actions/cache/restore@v4
+        with:
+          path: data/pronos.sqlite
+          key: pronos-db-none
+          restore-keys: pronos-db-
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Données du soir et app
+        run: |
+          cd engine && python -m pronos export && cd ..
+          cd app && npm ci && npm run build
+
+      - name: Montage
+        working-directory: engine
+        run: python -m pronos video ${{ inputs.match && format('--match {0}', inputs.match) || '' }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: video-prono
+          path: |
+            data/videos/*.mp4
+            data/videos/*.txt
+          retention-days: 14
