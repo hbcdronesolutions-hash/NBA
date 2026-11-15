@@ -1,11 +1,11 @@
 import { ListChecks } from "lucide-react";
-import { Check, X } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Empty, Loading, Page } from "../components/Page";
 import { TeamLogo } from "../components/TeamLogo";
 import { useRecord } from "../data";
 import { odds, pct, shortDate, signed } from "../format";
-import { advisedBet, isHit, pickSide, readThreshold, summary } from "../results";
+import { advisedBet, bestNightPick, isHit, nightPickFor, pickSide, readThreshold, summary } from "../results";
 import { team } from "../teams";
 import type { JournalEntry, Side } from "../types";
 
@@ -21,6 +21,9 @@ export function Results() {
   const th = readThreshold();
   const s = night ? summary(night[1], th) : null;
   const live = night?.[1].some((e) => e.live);
+  const nightPickId = night
+    ? bestNightPick(night[1].filter((e) => e.odds), (e) => nightPickFor(e.p_home, e.odds![0], e.odds![1]))?.item.id
+    : undefined;
 
   return (
     <Page title="Résultats" sub={night ? shortDate(night[0]) : " "}>
@@ -71,7 +74,7 @@ export function Results() {
             {[...night[1]]
               .sort((a, b) => Math.max(b.p_home, 1 - b.p_home) - Math.max(a.p_home, 1 - a.p_home))
               .map((e) => (
-                <ResultCard key={e.id} e={e} />
+                <ResultCard key={e.id} e={e} nightPick={nightPickId === e.id} />
               ))}
           </div>
           <p className="note">Paris conseillés : pastille verte, 1 unité misée à la cote du bookmaker. Gain en unités.</p>
@@ -81,7 +84,7 @@ export function Results() {
   );
 }
 
-function ResultCard({ e }: { e: JournalEntry }) {
+function ResultCard({ e, nightPick }: { e: JournalEntry; nightPick?: boolean }) {
   const hit = isHit(e);
   const bet = advisedBet(e);
   const pick = pickSide(e);
@@ -90,6 +93,19 @@ function ResultCard({ e }: { e: JournalEntry }) {
       <div className={`result-mark ${hit ? "ok" : "ko"}`}>{hit ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}</div>
       <Row e={e} side="away" pick={pick} />
       <Row e={e} side="home" pick={pick} />
+      {nightPick && (() => {
+        const np = nightPickFor(e.p_home, e.odds![0], e.odds![1])!;
+        const won = (np.side === "home") === (e.home_win === 1);
+        const a = np.side === "home" ? e.home : e.away;
+        return (
+          <div className={`result-bet nightpick-res ${won ? "won" : "lost"}`}>
+            <span>
+              <Sparkles size={13} /> Pari du soir · <TeamLogo abbr={a} size={16} /> {team(a).name} à {odds(np.odds)}
+            </span>
+            <b>{signed(won ? np.odds - 1 : -1)}</b>
+          </div>
+        );
+      })()}
       {bet && (
         <div className={`result-bet ${bet.won ? "won" : "lost"}`}>
           <span>

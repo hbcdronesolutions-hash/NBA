@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Empty, Loading, Page } from "../components/Page";
 import { useRecord } from "../data";
 import { pct, pct1, signed } from "../format";
-import { summary } from "../results";
+import { nightPicksHistory, summary } from "../results";
 import type { Backtest, CalibrationBin, JournalEntry } from "../types";
 
 const BINS = [0.5, 0.6, 0.7, 0.8, 0.9];
@@ -68,6 +68,17 @@ export function Record() {
   }, [data]);
 
   const bt = data?.backtest;
+  const nightPicks = useMemo(() => {
+    if (!data) return [];
+    const liveDone = data.journal.some((e) => e.live !== false && e.home_win != null);
+    const pool = data.journal.filter((e) => (liveDone ? e.live !== false : true));
+    return nightPicksHistory(pool).filter((x) => x.won != null);
+  }, [data]);
+  const np = {
+    n: nightPicks.length,
+    won: nightPicks.filter((x) => x.won).length,
+    profit: nightPicks.reduce((a, x) => a + (x.profit ?? 0), 0),
+  };
   return (
     <Page title="Bilan" sub={s ? (s.live ? `${s.n} prévisions en temps réel` : s.n ? `Saison en cours rejouée · ${s.n} matchs` : "Avant le premier résultat") : " "}>
       {error && <Empty icon={<CircleCheck />} title="Données indisponibles" />}
@@ -103,6 +114,29 @@ export function Record() {
               <span className="dash" /> Idéal
             </p>
           </div>
+
+          {nightPicks.length > 0 && (
+            <>
+              <h2 className="section">Pari du soir</h2>
+              <div className="card bets-card">
+                <div>
+                  <span className={`bets-val ${np.profit >= 0 ? "pos" : "neg"}`}>{signed(np.profit)}</span>
+                  <span className="kpi-label">unités</span>
+                </div>
+                <div>
+                  <span className="bets-val">
+                    {np.won}/{np.n}
+                  </span>
+                  <span className="kpi-label">gagnés</span>
+                </div>
+                <div>
+                  <span className="bets-val">{np.n ? `${signed((np.profit / np.n) * 100)} %` : "—"}</span>
+                  <span className="kpi-label">rendement</span>
+                </div>
+              </div>
+              <p className="note">{s.live ? "En temps réel" : "Saison rejouée"} · 1 unité par soir, à la meilleure cote relevée.</p>
+            </>
+          )}
 
           {s.bets.betN > 0 && (
             <>

@@ -1,5 +1,6 @@
 import { Moon } from "lucide-react";
 import { Link } from "react-router-dom";
+import { NightPickCard } from "../components/NightPickCard";
 import { OddsPill } from "../components/OddsPill";
 import { DemoChip, Empty, Loading, Page } from "../components/Page";
 import { ProbBar } from "../components/ProbBar";
@@ -16,6 +17,7 @@ export function Tonight() {
       {error && <Empty icon={<Moon />} title="Données indisponibles" text="Lance « python -m pronos soir » sur ton PC." />}
       {!data && !error && <Loading />}
       {data && data.games.length === 0 && <Empty icon={<Moon />} title="Pas de match cette nuit" />}
+      {data && data.games.length > 0 && <NightPickCard games={data.games} />}
       {data && (
         <div className="stack">
           {[...data.games]

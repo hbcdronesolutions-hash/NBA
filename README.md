@@ -12,6 +12,7 @@ Probabilité de victoire de chaque équipe pour les matchs NBA de la nuit, expli
 | **Résultats** | Chaque soirée : score final, pronostic de l'app (juste ou faux), pari conseillé (pastille verte) et son gain en unités. Avant le 15/11 : saison rejouée, marquée « Rejoué ». |
 | **Ce soir** | Matchs de la nuit (heure française), probabilité de chaque équipe, cote minimum colorée, repère des bookmakers sur la barre, alerte quand l'écart dépasse 5 points de %. |
 | Détail d'un match | 3 onglets. **Vainqueur** : écart prévu, ce qui fait pencher, absents, cotes. **Écart** : « gagne de X ou + » (1 à 15 pts) pour chaque équipe, probabilité et cote minimum. **Joueurs** : prévision points / rebonds / passes / P+R+P, puis « plus de / moins de » pour chaque ligne, probabilité et cote minimum. |
+| Pari du soir | Petit encart en haut de « Ce soir » : l'équipe que le modèle voit gagner alors que le bookmaker la voit perdante, avec la meilleure espérance (probabilité × cote). Suivi dans Résultats et Bilan. |
 | **Sélection** | Matchs au-dessus du seuil (curseur 60–80 %, 70 % par défaut), badges Très sûr / Sûr / Correct, probabilité « tous justes », cote minimum du combiné si toutes les pastilles sont vertes. |
 | **Forces** | Les 30 équipes : note nette, attaque, défense, évolution sur 15 matchs. |
 | **Bilan** | Réussite globale et sur 7 jours, calibration, face aux bookmakers, référence backtest, journal complet. |
