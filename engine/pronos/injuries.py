@@ -74,7 +74,7 @@ def fetch_latest(now: datetime | None = None) -> tuple[str | None, list[dict]]:
         r = requests.get(url, timeout=20)
         if r.status_code == 200 and r.content[:4] == b"%PDF":
             with pdfplumber.open(io.BytesIO(r.content)) as pdf:
-                text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+                text = "\n".join(page.extract_text(x_tolerance=1.5) or "" for page in pdf.pages)
             return url, parse_text(text)
     return None, []
 

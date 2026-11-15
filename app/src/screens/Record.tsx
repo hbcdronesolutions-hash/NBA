@@ -4,7 +4,7 @@ import { Empty, Loading, Page } from "../components/Page";
 import { TeamLogo } from "../components/TeamLogo";
 import { useRecord } from "../data";
 import { pct, pct1, shortDate } from "../format";
-import type { CalibrationBin, JournalEntry } from "../types";
+import type { Backtest, CalibrationBin, JournalEntry } from "../types";
 
 const BINS = [0.5, 0.6, 0.7, 0.8, 0.9];
 
@@ -71,16 +71,26 @@ export function Record() {
 
   const bt = data?.backtest;
   return (
-    <Page title="Bilan" sub={s ? `${s.n} prévisions vérifiées` : " "}>
+    <Page title="Bilan" sub={s ? (s.n ? `${s.n} prévisions vérifiées` : "Avant le premier résultat") : " "}>
       {error && <Empty icon={<CircleCheck />} title="Données indisponibles" />}
       {!data && !error && <Loading />}
       {s && (
         <>
-          <div className="kpis">
-            <Kpi value={s.acc} label="Bons vainqueurs" big />
-            <Kpi value={s.week} label="7 derniers jours" />
-            <Kpi value={s.sel.acc} label={`Sélection ≥ ${Math.round(s.sel.th * 100)} %`} />
-          </div>
+          {s.n > 0 ? (
+            <div className="kpis">
+              <Kpi value={s.acc} label="Bons vainqueurs" big />
+              <Kpi value={s.week} label="7 derniers jours" />
+              <Kpi value={s.sel.acc} label={`Sélection ≥ ${Math.round(s.sel.th * 100)} %`} />
+            </div>
+          ) : (
+            bt && (
+              <div className="kpis">
+                <Kpi value={bt.accuracy} label="Bons vainqueurs (backtest)" big />
+                <Kpi value={selAcc(bt, 70)} label="Sélection ≥ 70 %" />
+                <Kpi value={selAcc(bt, 75)} label="Sélection ≥ 75 %" />
+              </div>
+            )
+          )}
 
           <h2 className="section">Justesse des probabilités</h2>
           <div className="card chart-card">
@@ -111,6 +121,7 @@ export function Record() {
               <h2 className="section">Référence backtest</h2>
               <div className="card list">
                 <Versus label="Modèle" value={bt.accuracy} ll={bt.logloss} strong />
+                {bt.books && <Versus label="Bookmakers" value={bt.books.book_accuracy} ll={bt.books.book_logloss} />}
                 {bt.baselines.better_record != null && <Versus label="Meilleur bilan" value={bt.baselines.better_record} />}
                 {bt.baselines.home_always != null && <Versus label="Toujours domicile" value={bt.baselines.home_always} />}
               </div>
@@ -119,6 +130,9 @@ export function Record() {
           )}
 
           <h2 className="section">Journal</h2>
+          {byDate.length === 0 && (
+            <div className="card empty-card">Le journal démarre avec les prévisions de ce soir. Les résultats s'ajoutent chaque matin.</div>
+          )}
           <div className="stack">
             {(showAll ? byDate : byDate.slice(0, 4)).map(([date, entries]) => (
               <div key={date} className="card list">
@@ -138,6 +152,11 @@ export function Record() {
       )}
     </Page>
   );
+}
+
+function selAcc(bt: Backtest, th: number): number {
+  const v = bt.selection[`conf${th}`];
+  return typeof v === "object" && v?.accuracy != null ? v.accuracy : NaN;
 }
 
 function Kpi({ value, label, big }: { value: number; label: string; big?: boolean }) {

@@ -125,3 +125,19 @@ def baselines(games: pd.DataFrame, seasons: list[str]) -> dict:
             wins.setdefault(g.away, []).append(1 - hw)
     return {"home_always": float(np.mean(home)) if home else None,
             "better_record": float(np.mean(better)) if better else None}
+
+
+def versus_books(bt: pd.DataFrame, con) -> dict | None:
+    """Même score calculé avec les probabilités des bookmakers (marge retirée)."""
+    odds = pd.read_sql_query("SELECT match_id AS id, cote_dom, cote_ext FROM cotes", con).drop_duplicates("id")
+    d = bt.merge(odds, on="id")
+    if d.empty:
+        return None
+    ih, ia = 1 / d["cote_dom"], 1 / d["cote_ext"]
+    pb = (ih / (ih + ia)).clip(1e-6, 1 - 1e-6)
+    y = d["home_win"]
+    pm = d["p_home"].clip(1e-6, 1 - 1e-6)
+    ll = lambda p: float(-(y * np.log(p) + (1 - y) * np.log(1 - p)).mean())
+    return {"n": int(len(d)),
+            "model_accuracy": float(((pm >= .5) == (y == 1)).mean()), "model_logloss": ll(pm),
+            "book_accuracy": float(((pb >= .5) == (y == 1)).mean()), "book_logloss": ll(pb)}

@@ -14,12 +14,13 @@ import argparse
 import json
 import socket
 from dataclasses import asdict, replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 from . import backtest as BT
 from . import collect as C
+from . import espn as E
 from . import injuries as INJ
 from .db import ROOT, connect
 from .service import BACKTEST_FILE, PARAMS_FILE, export, journal, load_params, tonight
@@ -32,40 +33,42 @@ def _seasons_back(n: int) -> list[str]:
 
 
 def cmd_init(args) -> None:
+    """Historique via ESPN : calendrier, scores, box scores (équipes et joueurs)."""
     con = connect()
-    for s in _seasons_back(args.saisons):
-        try:
-            n = C.store_team_logs(con, s, C.fetch_team_logs(s))
-            print(f"{s} : {n} matchs (nba_api)")
-            if s == C.season_of(date.today()):
-                C.store_player_logs(con, C.fetch_player_logs(s))
-        except Exception as e:  # secours : Basketball-Reference
-            print(f"{s} : nba_api indisponible ({e.__class__.__name__}), essai Basketball-Reference…")
-            n = C.store_bref_season(con, s, C.fetch_bref_season(int(s[:4]) + 1))
-            print(f"{s} : {n} matchs (Basketball-Reference, possessions estimées)")
-    C.store_schedule(con, C.fetch_schedule())
+    today = date.today()
+    cur = int(C.season_of(today)[:4])
+    for y in range(cur - args.saisons, cur + 1):
+        games = E.sync_dates(con, E.season_days(y, today))
+        done = sum(g["done"] for g in games)
+        print(f"{E.season_label(y)} : {done} matchs joués, {len(games) - done} à venir", flush=True)
+    print(f"Box scores : {E.sync_boxscores(con)} matchs")
     print("Vérification : 1 230 matchs attendus par saison régulière complète.")
 
 
 def cmd_matin(args) -> None:
+    """Résultats des derniers jours, calendrier à 10 jours, box scores."""
     con = connect()
-    s = C.season_of(date.today())
-    C.store_schedule(con, C.fetch_schedule())
-    print(f"Résultats {s} : {C.store_team_logs(con, s, C.fetch_team_logs(s))} matchs")
-    print(f"Lignes joueurs : {C.store_player_logs(con, C.fetch_player_logs(s))}")
+    today = date.today()
+    E.sync_dates(con, [today + timedelta(days=k) for k in range(-3, 11)])
+    print(f"Box scores : {E.sync_boxscores(con, progress=False)} nouveaux matchs")
     export(con)
 
 
 def cmd_soir(args) -> None:
+    """Rapport des blessures, cotes du jour, prévisions, journal, export."""
     con = connect()
+    today = date.today()
+    E.sync_dates(con, [today - timedelta(days=1), today])
+    E.sync_boxscores(con, progress=False)
     url, rows = INJ.fetch_latest()
     if url:
         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        print(f"Blessures : {INJ.store(con, f'{stamp} {url}', rows)} lignes")
+        print(f"Blessures : {INJ.store(con, f'{stamp} {url}', rows)} lignes ({url.rsplit('/', 1)[-1]})")
     else:
         print("Blessures : aucun rapport trouvé")
     odds = C.fetch_odds()
-    print(f"Cotes : {C.store_odds(con, odds)} matchs" if odds else "Cotes : pas de clé ODDS_API_KEY, ignoré")
+    if odds:
+        print(f"Cotes The Odds API : {C.store_odds(con, odds)} matchs")
     _, games = tonight(con)
     print(f"Journal : {journal(con, games, load_params().version)} nouvelles prévisions")
     export(con)
@@ -81,8 +84,8 @@ def cmd_backtest(args) -> None:
     seasons = sorted(games["season"].unique())
     if len(seasons) < 4:
         raise SystemExit("Il faut au moins 4 saisons (python -m pronos init).")
-    train, valid, test = seasons[-4:-2], seasons[-2], seasons[-1:]
-    print(f"Réglage sur {train}, vérification sur {valid}, test final sur {test}")
+    train, valid, test = seasons[:-3], seasons[-3], seasons[-2:]
+    print(f"Réglage sur {train}, vérification sur {valid}, test final sur {test}", flush=True)
     best, _ = BT.tune(games, train, valid)
     bt = BT.replay(games, best)
     v = BT.metrics(bt[bt["season"] == valid])
@@ -90,10 +93,17 @@ def cmd_backtest(args) -> None:
     mt = BT.metrics(t)
     print(f"Retenu : demi-vie {best.half_life_days} j, a priori {best.prior_weight} matchs, σ {best.sigma}")
     print(f"Vérification : {v['accuracy']:.1%}  log loss {v['logloss']:.3f}")
-    print(f"Test final   : {mt['accuracy']:.1%}  log loss {mt['logloss']:.3f}")
+    print(f"Test final   : {mt['accuracy']:.1%}  log loss {mt['logloss']:.3f}  ({mt['n']} matchs)")
+    books = BT.versus_books(t, con)
+    if books:
+        print(f"Bookmakers ({books['n']} matchs) : modèle {books['model_accuracy']:.1%} / {books['model_logloss']:.3f}"
+              f"  —  bookmakers {books['book_accuracy']:.1%} / {books['book_logloss']:.3f}")
+    PARAMS_FILE.parent.mkdir(parents=True, exist_ok=True)
     PARAMS_FILE.write_text(json.dumps(asdict(best), indent=2))
-    BACKTEST_FILE.write_text(json.dumps({"seasons": test, **mt, "baselines": BT.baselines(games, test),
-                                         "selection": BT.selection(t)}))
+    BACKTEST_FILE.write_text(json.dumps({
+        "source": f"Backtest sur données réelles — {', '.join(test)} ({mt['n']} matchs jamais vus)",
+        "seasons": test, **mt, "baselines": BT.baselines(games, test),
+        "selection": BT.selection(t), "books": books}))
     export(con)
 
 

@@ -31,13 +31,13 @@ npm install
 npm run build
 ```
 
-Essayer tout de suite avec des données simulées : `python -m pronos demo` (dans `engine/`), puis `python -m pronos serve`.
+Le dépôt contient déjà la base réelle (`data/pronos.sqlite` : 2022-23 à aujourd'hui, source ESPN) et les paramètres réglés par le backtest. `python -m pronos demo` reste disponible pour une ligue simulée.
 
 ## Données réelles
 
 ```bash
 cd engine
-python -m pronos init        # 4 saisons + saison en cours (une fois, ~quelques minutes)
+python -m pronos init        # 4 saisons + saison en cours via ESPN (déjà fait, ~2 min)
 python -m pronos backtest    # règle les paramètres et écrit data/params.json
 python -m pronos matin       # chaque matin : résultats, calendrier, stats joueurs
 python -m pronos soir        # avant les matchs : blessures, cotes, prévisions, journal
@@ -47,7 +47,7 @@ python -m pronos serve       # affiche l'adresse à ouvrir sur le téléphone (m
 Sur le téléphone : ouvrir l'adresse, puis **Partager → Sur l'écran d'accueil** (iPhone) ou **Installer l'application** (Android).
 
 - Cotes : créer une clé gratuite sur the-odds-api.com, puis `export ODDS_API_KEY=...` (bookmaker préféré : `ODDS_BOOKMAKER=betclic`).
-- NBA.com bloque les serveurs cloud : la collecte doit tourner depuis ta connexion domestique.
+- Sources : ESPN (calendrier, scores, box scores, cotes DraftKings) et rapport officiel des blessures NBA. stats.nba.com bloque les serveurs cloud ; ESPN non.
 - Automatisation : tâche planifiée (Planificateur de tâches Windows, `cron` sur Mac/Linux), par ex. `matin` à 9 h et `soir` à 18 h.
 
 ## Le modèle (fiche de conception V1)
