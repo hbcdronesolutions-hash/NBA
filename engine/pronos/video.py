@@ -1,4 +1,6 @@
-"""Vidéo du prono du soir : captures de l'app + montage dynamique + voix off.
+"""Vidéo de la prédiction du soir (compatible TikTok) : captures de l'app + montage dynamique + voix off.
+
+Aucun contenu de jeux d'argent : ni cotes, ni bookmakers, ni vocabulaire de pari (règles TikTok).
 
     python -m pronos video                 # match le plus fiable du soir, voix edge-tts
     python -m pronos video --voix espeak   # voix de secours (hors ligne)
@@ -38,8 +40,6 @@ VOICE = os.environ.get("PRONOS_VOIX", "fr-FR-RemyMultilingualNeural")
 FONT_DIRS = ["/usr/share/fonts/opentype/inter", "/usr/share/fonts/truetype/inter", "C:/Windows/Fonts", "/Library/Fonts"]
 FADE = 0.35
 
-RESPONSABLE = ("Jouer comporte des risques : endettement, isolement, dépendance. "
-               "Pour être aidé, appelez le 09 74 75 13 13, appel non surtaxé.")
 
 
 # ---------------------------------------------------------------- utilitaires
@@ -160,18 +160,18 @@ def yesterday_review(record: dict, today: str) -> dict | None:
 
 def _positive_stat(rev: dict) -> str:
     if rev["top2_ok"]:
-        return "les 2 pronos les plus sûrs sont quand même passés"
+        return "les 2 prédictions les plus sûres sont quand même passées"
     if rev["offered_ok"]:
         return "le match qu'on t'avait analysé est bien passé"
     if rev["week_nights"] >= 3 and rev["week_rate"] >= 0.65:
         return f"sur les {rev['week_nights']} derniers soirs, notre algorithme reste à {_pct(rev['week_rate'])} de réussite"
     if rev["streak"] >= 2:
-        return f"le prono le plus sûr est passé {rev['streak']} soirs d'affilée"
+        return f"la prédiction la plus sûre est passée {rev['streak']} soirs d'affilée"
     return f"depuis le début du suivi, notre algorithme est à {_pct(rev['all_rate'])} de réussite"
 
 
 def script(g: dict, today: dict, ratings: dict | None = None, record: dict | None = None) -> list[Scene]:
-    """Voix off validée : bilan de la veille, analyse détaillée du match offert, cotes, fin sans lien."""
+    """Voix off : bilan de la veille, analyse statistique détaillée du match, sans aucun contenu de pari."""
     home, away = g["home"], g["away"]
     fav = home if g["p_home"] >= 0.5 else away
     other = away if fav == home else home
@@ -188,9 +188,9 @@ def script(g: dict, today: dict, ratings: dict | None = None, record: dict | Non
         score = f"{rev['hits']} sur {rev['n']}"
         if rev["rate"] >= 0.8:
             hook = (f"Hier soir, notre algorithme a trouvé le bon vainqueur sur {rev['n']} matchs NBA sur {rev['n']}."
-                    + (" Aucune erreur." if rev["hits"] == rev["n"] else f" {rev['hits']} bons pronos."))
+                    + (" Aucune erreur." if rev["hits"] == rev["n"] else f" {rev['hits']} bonnes prédictions."))
             if rev["hits"] < rev["n"]:
-                hook = f"Hier soir, {score} : {rev['hits']} bons pronos sur {rev['n']} matchs NBA pour notre algorithme."
+                hook = f"Hier soir, {score} : {rev['hits']} bonnes prédictions sur {rev['n']} matchs NBA pour notre algorithme."
         elif rev["rate"] >= 0.6:
             hook = f"Hier soir, {score} pour notre algorithme… et {_positive_stat(rev)}."
         else:
@@ -214,10 +214,10 @@ def script(g: dict, today: dict, ratings: dict | None = None, record: dict | Non
             t += f"Et le match qu'on t'avait analysé, {on} contre {oo} : victoire des {on}, {sw} à {sl}."
         else:
             t += (f"Le match qu'on t'avait analysé, {on} contre {oo}, n'est pas passé : {sw} à {sl}. "
-                  "Ça arrive : aucun prono n'est sûr à 100 %.")
+                  "Ça arrive : aucune prédiction n'est sûre à 100 %.")
         sc.append(Scene("veille", "Hier soir", t, meta={"shot": "veille", "scroll": True}))
     else:
-        sc.append(Scene("intro", "Prono NBA du soir", "Ce soir, notre algorithme a analysé tous les matchs NBA de la nuit.",
+        sc.append(Scene("intro", "Prédiction NBA du soir", "Ce soir, notre algorithme a analysé tous les matchs NBA de la nuit.",
                         meta={"card": "intro"}))
 
     # 3. Le match du soir.
@@ -334,41 +334,18 @@ def script(g: dict, today: dict, ratings: dict | None = None, record: dict | Non
             break
     sc.append(Scene("total", f"{F} par {_int(spread)} pts", t, meta={"shot": "f_Écart prévu"}))
 
-    # 10. Cotes et bookmakers.
-    side = "home" if fav == home else "away"
-    mn = g["min_odds"][side]
-    if g.get("odds"):
-        best = g["odds"][side]
-        french = g["odds"].get("french", True)
-        bk = g["odds"].get(f"book_{side}") if french else None
-        bk = bk or "les bookmakers"
-        pb = g["p_book_home"] if fav == home else 1 - g["p_book_home"]
-        if p - pb > 0.10:
-            t = (f"Côté cotes, attention : les bookmakers ne donnent les {F} qu'à {_pct(pb)}, cote {fr(best, 2)} chez {bk}, "
-                 f"bien au-dessus de notre minimum de {fr(mn, 2)}. Vraie opportunité, ou info qu'ils ont et pas nous : "
-                 f"vérifie les blessures avant de miser.")
-        elif best >= mn:
-            t = (f"Côté cotes, les bookmakers sont d'accord, à {_pct(pb)}. La meilleure cote est à {fr(best, 2)} chez {bk}, "
-                 f"au-dessus de notre minimum de {fr(mn, 2)} : selon notre algorithme, ce pari a de la valeur.")
-        else:
-            t = (f"Côté cotes, les bookmakers sont d'accord, à {_pct(pb)}. Mais la meilleure cote, à {fr(best, 2)} chez {bk}, "
-                 f"est sous notre minimum de {fr(mn, 2)} : le pari est probable, mais il rapporte peu. À jouer petit, ou à combiner.")
-    else:
-        t = f"Côté cotes, notre cote minimum est de {fr(mn, 2)}. Compare-la à celle de ton bookmaker."
-    sc.append(Scene("cotes", "Les cotes", t, meta={"shot": "cotes"}))
-
     # 11. Rien n'est figé.
     gen = datetime.fromisoformat(today["generated_at"]).astimezone(ZoneInfo("Europe/Paris"))
     sc.append(Scene("maj", "Rien n'est figé",
-                    f"Prono calculé à {gen.hour} heure{'s' if gen.hour > 1 else ''} {gen.minute:02d} : un forfait de dernière "
+                    f"Prédiction calculée à {gen.hour} heure{'s' if gen.hour > 1 else ''} {gen.minute:02d} : un forfait de dernière "
                     f"minute peut tout changer.", meta={"card": "maj", "time": f"{gen:%H:%M}"}))
 
     # 12. Fin.
     sc.append(Scene("cta", "Abonne-toi",
                     "Chaque soir, notre algorithme analyse tous les matchs NBA, joueur par joueur. On t'en offre un : "
                     "abonne-toi pour celui de demain.", meta={"card": "cta", "rev": rev}))
-    sc.append(Scene("outro", f"Prono : {F}",
-                    "Et rappel : aucun pari n'est sûr, joue de façon responsable.",
+    sc.append(Scene("outro", f"Prédiction : {F}",
+                    "Et rappel : c'est une prédiction statistique, pas une certitude. Rendez-vous demain !",
                     meta={"card": "outro"}))
     return sc
 
@@ -386,7 +363,13 @@ def serve(dist: Path) -> tuple[ThreadingHTTPServer, int]:
     return srv, srv.server_address[1]
 
 
-HIDE = ".tabbar{display:none!important} .nightpick{display:none!important} *{animation:none!important;transition:none!important}"
+HIDE = (".tabbar,.nightpick,.pill,.probbar-tick,.flag,.book,.odds-grid,.books,.legend,.result-bet,.note{display:none!important}"
+        "*{animation:none!important;transition:none!important}")
+# Vocabulaire de pari remplacé à l'écran (règles TikTok sur les jeux d'argent).
+RENAME_JS = """() => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const rep = [[/Prono /g, 'Prédiction '], [/pronos/gi, 'prédictions'], [/Sélection ≥/g, 'Sûrs ≥']];
+  for (let n; (n = w.nextNode());) for (const [a, b] of rep) n.nodeValue = n.nodeValue.replace(a, b);
+  document.querySelectorAll('h2.section').forEach(h => { if (/cote|pari|bookmaker/i.test(h.textContent)) h.style.display = 'none'; }); }"""
 
 
 def _safe(name: str) -> str:
@@ -420,6 +403,7 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
             page.wait_for_selector(".page, .page-detail")
             page.add_style_tag(content=HIDE)
             page.wait_for_timeout(700)
+            page.evaluate(RENAME_JS)
 
         # Résultats de la veille : en clair (c'est du passé, et c'est la preuve).
         if "veille" in wanted:
@@ -481,15 +465,6 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
             else:
                 shutil.copy(out / "match.png", out / "absents.png")
 
-        # Cotes.
-        box = page.evaluate("""() => {
-            const g = document.querySelector('.odds-grid');
-            const end = document.querySelector('.legend') || g;
-            let top = g.getBoundingClientRect().top + window.scrollY - 70;
-            const bottom = end.getBoundingClientRect().bottom + window.scrollY + 16;
-            return {x: 0, y: Math.max(0, top), width: window.innerWidth, height: bottom - Math.max(0, top)};
-        }""")
-        page.screenshot(path=str(out / "cotes.png"), full_page=True, clip=box)
 
         # Forces : uniquement les deux équipes du match, sans numéro de rang.
         if "forces" in wanted:
@@ -623,7 +598,7 @@ def _title_card(canvas: Image.Image, scene: Scene, logos: dict, g: dict) -> None
     card = scene.meta["card"]
     rev = scene.meta.get("rev")
     if card == "intro":
-        d.text((W // 2, 330), "PRONOS NBA", font=font(52, "SemiBold"), fill=green, anchor="mm")
+        d.text((W // 2, 330), "PRÉDICTIONS NBA", font=font(52, "SemiBold"), fill=green, anchor="mm")
         if rev:
             d.text((W // 2, 700), f"{rev['hits']}/{rev['n']}", font=font(300), fill=INK, anchor="mm")
             d.text((W // 2, 900), "hier soir", font=font(80, "SemiBold"), fill=INK, anchor="mm")
@@ -635,9 +610,9 @@ def _title_card(canvas: Image.Image, scene: Scene, logos: dict, g: dict) -> None
             for i, e in enumerate(rev["night"]):
                 ok = (e["p_home"] >= 0.5) == (e["home_win"] == 1)
                 _check(d, x0 + i * gap, 1060, r, ok)
-            d.text((W // 2, 1200), "bons pronos de notre algorithme", font=font(44, "Medium"), fill=MUTED, anchor="mm")
+            d.text((W // 2, 1200), "bonnes prédictions de notre algorithme", font=font(44, "Medium"), fill=MUTED, anchor="mm")
         else:
-            d.text((W // 2, 800), "Le prono du soir", font=font(90), fill=INK, anchor="mm")
+            d.text((W // 2, 800), "La prédiction du soir", font=font(90), fill=INK, anchor="mm")
     elif card == "maj":
         d.text((W // 2, 520), scene.meta.get("time", ""), font=font(200), fill=INK, anchor="mm")
         d.text((W // 2, 680), "heure du calcul", font=font(48, "Medium"), fill=MUTED, anchor="mm")
@@ -658,15 +633,14 @@ def _title_card(canvas: Image.Image, scene: Scene, logos: dict, g: dict) -> None
         d.text((W // 2, y + 530), "Abonne-toi", font=font(60), fill=(255, 255, 255), anchor="mm")
     else:
         lf = logos["home" if fav == home else "away"].resize((360, 360))
-        d.text((W // 2, 330), "PRONOSTIC", font=font(54, "SemiBold"), fill=green, anchor="mm")
+        d.text((W // 2, 330), "PRÉDICTION", font=font(54, "SemiBold"), fill=green, anchor="mm")
         canvas.paste(lf, ((W - 360) // 2, 440), lf)
         d.text((W // 2, 900), f"{nick(fav)} gagnant", font=font(84), fill=INK, anchor="mm")
         d.text((W // 2, 1030), f"{p} %", font=font(150), fill=INK, anchor="mm")
         d.text((W // 2, 1150), "selon notre algorithme", font=font(42, "Medium"), fill=MUTED, anchor="mm")
         small = font(30, "Medium")
         y = 1300
-        for line in ("Aucun pari n'est sûr. Misez petit.", "Jouer comporte des risques : endettement,",
-                     "isolement, dépendance. 09 74 75 13 13", "(appel non surtaxé) · Interdit aux mineurs"):
+        for line in ("Analyse statistique du basket NBA.", "Une prédiction n'est jamais une certitude."):
             d.text((W // 2, y), line, font=small, fill=MUTED, anchor="mm")
             y += 44
 
@@ -821,6 +795,11 @@ def make(match_id: str | None = None, voice: str = "edge", out_dir: Path | None 
         run(["ffmpeg", "-y", *inputs, "-filter_complex", ";".join(fc), "-map", "[vout]", "-map", aprev,
              "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
              "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out)])
-    (out_dir / f"{name}.txt").write_text("\n\n".join(f"[{s.title}]\n{s.text}" for s in scenes), encoding="utf-8")
+    fav = g["home"] if g["p_home"] >= 0.5 else g["away"]
+    legend = (f"Légende TikTok suggérée :\n{nick(fav)} à {round(max(g['p_home'], 1 - g['p_home']) * 100)} % ce soir selon "
+              f"notre algorithme. L'analyse complète en vidéo 🏀📊\n"
+              f"#NBA #basketball #{nick(g['home']).replace(' ', '')} #{nick(g['away']).replace(' ', '')} #stats #data #analyse #IA\n\n"
+              "À éviter (règles TikTok sur les jeux d'argent) : prono, pronostic, pari, cote, bookmaker, mise, combiné.\n\n")
+    (out_dir / f"{name}.txt").write_text(legend + "\n\n".join(f"[{s.title}]\n{s.text}" for s in scenes), encoding="utf-8")
     print(f"Vidéo : {out}  ({sum(durs):.0f} s, voix {voice})")
     return out

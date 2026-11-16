@@ -67,12 +67,15 @@ Le fichier `.github/workflows/pronos.yml` tourne tout seul, sans PC allumé :
 
 Mise en place (une fois) : **Settings → Pages → Source : GitHub Actions**. Lancement manuel : onglet **Actions → Pronos NBA → Run workflow**. Clé The Odds API facultative : secret `ODDS_API_KEY`.
 
-## Vidéo du prono du soir
+## Vidéo de la prédiction du soir (compatible TikTok)
 
-`python -m pronos video` fabrique une vidéo verticale (1080×1920, réseaux sociaux) du match le plus sûr du soir :
-captures de l'app (liste du soir, détail, chaque élément qui fait pencher mis en avant, cotes), zooms lents,
-transitions, sous-titres et voix off qui explique le pronostic (voix neuronale `edge-tts`, secours `espeak-ng`).
-Le texte de la voix off est enregistré à côté (`.txt`). Fin de vidéo : message de jeu responsable.
+`python -m pronos video` fabrique une vidéo verticale (1080×1920) du match le plus sûr du soir : bilan de la veille
+(résultats qui défilent), match du soir (autres matchs floutés), analyse statistique détaillée (niveau pour 100
+possessions, tendance, rythme, absents joueur par joueur, contexte, fiabilité vérifiée), voix off naturelle
+(`edge-tts`) et sous-titres.
+
+Aucun contenu de jeux d'argent (règles TikTok) : ni cotes, ni bookmakers, ni vocabulaire de pari, à l'écran comme dans
+la voix. Le fichier `.txt` contient le texte de la voix off et une légende avec des hashtags neutres.
 
 Automatique chaque jour à 18h23 (Paris) via `.github/workflows/video.yml`. Lien fixe vers la dernière vidéo :
 https://github.com/hbcdronesolutions-hash/NBA/releases/download/video-du-soir/prono-du-soir.mp4
