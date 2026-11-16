@@ -1,7 +1,7 @@
 import { ChevronLeft, House } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { OddsPill, VERDICT_LABEL } from "../components/OddsPill";
-import { Loading } from "../components/Page";
+import { Empty, Loading } from "../components/Page";
 import { Segmented } from "../components/Segmented";
 import { PlayersTab } from "./PlayersTab";
 import { SpreadTab } from "./SpreadTab";
@@ -28,7 +28,17 @@ export function Match() {
         <span className="time">{g ? tipTime(g.tip_utc) : ""}</span>
         <span style={{ width: 32 }} />
       </header>
-      {!g ? <Loading /> : <Detail g={g} sigma={data?.sigma ?? 13.7} />}
+      {!data ? (
+        <Loading />
+      ) : !g ? (
+        <Empty
+          icon={<ChevronLeft />}
+          title="Ce match n'est plus au programme"
+          text="Retrouve les matchs de ce soir dans l'onglet Ce soir, et les résultats dans Résultats."
+        />
+      ) : (
+        <Detail g={g} sigma={data.sigma ?? 13.7} />
+      )}
     </main>
   );
 }

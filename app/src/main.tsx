@@ -19,6 +19,12 @@ registerSW({
   },
 });
 
+// À l'ouverture, toujours démarrer sur « Ce soir » : un ancien match (gardé par le téléphone
+// comme dernière page vue ou adresse de l'icône) ne doit jamais s'afficher au lancement.
+if (location.hash.startsWith("#/match/")) {
+  history.replaceState(null, "", location.pathname + location.search + "#/");
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

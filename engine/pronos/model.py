@@ -106,12 +106,11 @@ def predict(home: str, away: str, day: pd.Timestamp, r: Ratings, p: Params,
     home_pts = (th["off"] + ta["def"] - lg) * pace / 100
     away_pts = (ta["off"] + th["def"] - lg) * pace / 100
     nick = lambda a: TEAMS[a].name
-    ranks = {a: i + 1 for i, a in enumerate(sorted(TEAMS, key=lambda a: -r.team(a)["net"]))}
-    rank_txt = lambda a: "1er" if ranks[a] == 1 else f"{ranks[a]}e"
+    fmt_net = lambda x: ("+" if x >= 0 else "−") + f"{abs(x):.1f}".replace(".", ",")
     factors = [Factor(
         "force", "Niveau des équipes cette saison", home_pts - away_pts, None,
-        f"{nick(home)} {rank_txt(home)} de la ligue, {nick(away)} {rank_txt(away)} "
-        f"(points marqués et encaissés, adversaires pris en compte)")]
+        f"Points marqués moins points encaissés pour 100 possessions, force des adversaires prise en compte : "
+        f"{nick(home)} {fmt_net(th['net'])}, {nick(away)} {fmt_net(ta['net'])}")]
 
     # Étage 3 — contexte du match.
     if use_context:

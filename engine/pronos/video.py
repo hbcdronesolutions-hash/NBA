@@ -34,7 +34,7 @@ W, H, FPS = 1080, 1920, 30
 BG = (245, 245, 242)
 INK = (17, 17, 19)
 MUTED = (120, 120, 126)
-VOICE = "fr-FR-HenriNeural"
+VOICE = os.environ.get("PRONOS_VOIX", "fr-FR-RemyMultilingualNeural")
 FONT_DIRS = ["/usr/share/fonts/opentype/inter", "/usr/share/fonts/truetype/inter", "C:/Windows/Fonts", "/Library/Fonts"]
 FADE = 0.35
 
@@ -89,61 +89,105 @@ class Scene:
     title: str          # bandeau en haut de l'écran
     text: str           # voix off (et sous-titres)
     image: Path | None = None
+    meta: dict | None = None
 
 
-def script(g: dict, n_games: int) -> list[Scene]:
+def _pts(x: float) -> str:
+    x = abs(x)
+    return fr(x) + (" points" if x >= 2 else " point")
+
+
+def script(g: dict, n_games: int, ratings: dict | None = None) -> list[Scene]:
+    """Texte de la voix off : accroche, explication détaillée du vainqueur, cotes, appel à s'abonner."""
     home, away = g["home"], g["away"]
     fav = home if g["p_home"] >= 0.5 else away
     other = away if fav == home else home
-    p = max(g["p_home"], 1 - g["p_home"])
+    p = round(max(g["p_home"], 1 - g["p_home"]) * 100)
     spread = abs(g["spread"])
-    tip = datetime.fromisoformat(g["tip_utc"]).astimezone(ZoneInfo("Europe/Paris")) if g.get("tip_utc") else None
-    if not tip:
-        heure = "ce soir"
-    elif tip.hour == 0:
-        heure = "minuit" + (f" {tip.minute}" if tip.minute else "")
-    else:
-        heure = f"{tip.hour} heure{'s' if tip.hour > 1 else ''}" + (f" {tip.minute}" if tip.minute else "")
-    lieu = f"les {nick(home)} reçoivent les {nick(away)}"
+    F, O = nick(fav), nick(other)
+    lieu = "à domicile" if fav == home else "à l'extérieur"
+    rt = {t["abbr"]: t for t in (ratings or {}).get("teams", [])}
+    facts = {f["key"] + (f.get("team") or ""): f for f in g["factors"]}
+    by_key = lambda k: [f for f in g["factors"] if f["key"] == k and abs(f["points"]) >= 0.3]
 
-    sc = [
-        Scene("intro", "Le prono le plus sûr du soir",
-              f"Pronostic du soir. Le match le plus fiable selon l'appli : {lieu}, coup d'envoi à {heure}."),
-        Scene("liste", "Ce soir",
-              f"Parmi les {n_games} matchs de la nuit, c'est celui où le modèle est le plus sûr de lui."),
-    ]
+    sc = [Scene("intro", f"{F} à {p} %",
+                f"Ce soir, notre algorithme a un favori très clair : les {F}, à {p} % ! "
+                f"Je t'explique tout de suite pourquoi.")]
+    sc.append(Scene("liste", "Ce soir",
+                    f"Chaque soir, l'appli analyse tous les matchs NBA de la nuit. Ce soir, il y en a {n_games}, "
+                    f"et celui-ci sort clairement du lot : les {F} {lieu}, face aux {O}."))
     book = ""
     if g.get("p_book_home") is not None:
-        pb = g["p_book_home"] if fav == home else 1 - g["p_book_home"]
-        book = f" Les bookmakers, eux, sont à {round(pb * 100)} %."
-    sc.append(Scene("match", f"{nick(fav)} gagnant à {round(p * 100)} %",
-                    f"Le modèle donne les {nick(fav)} gagnants à {round(p * 100)} %, "
-                    f"avec {fr(spread)} points d'avance prévus.{book}"))
+        pb = round((g["p_book_home"] if fav == home else 1 - g["p_book_home"]) * 100)
+        book = (f" Et les bookmakers vont dans le même sens, à {pb} %." if abs(pb - p) <= 5 else
+                f" Les bookmakers, eux, ne sont qu'à {pb} % : notre modèle y croit plus qu'eux.")
+    sc.append(Scene("match", f"{F} gagnant à {p} %",
+                    f"Notre modèle donne {p} % de chances de victoire aux {F}, avec environ "
+                    f"{round(spread)} points d'avance prévus.{book}"))
 
-    # Les éléments qui font pencher, du plus important au moins important.
-    factors = sorted([f for f in g["factors"] if abs(f["points"]) >= 0.3], key=lambda f: -abs(f["points"]))[:4]
-    intros = ["D'abord", "Ensuite", "Puis", "Enfin"]
-    for i, f in enumerate(factors):
-        who = home if f["points"] >= 0 else away
-        pts = fr(abs(f["points"])) + (" points" if abs(f["points"]) >= 2 else " point")
-        pre = intros[i] if i < len(intros) else "Aussi"
-        k = f["key"]
-        if k == "force":
-            t = f"{pre}, le niveau des équipes cette saison : {f['detail'].split(' (')[0]}. Ça vaut {pts} pour les {nick(who)}."
-        elif k == "terrain":
-            t = f"{pre}, l'avantage du terrain : les {nick(home)} jouent chez eux, {pts} de plus."
-        elif k in ("effectif", "absents"):
-            t = f"{pre}, l'effectif du soir : {f['detail'].replace(':', ',')}. Impact : {pts} en faveur des {nick(who)}."
-        elif k in ("veille", "3en4"):
-            t = f"{pre}, la fatigue : les {f['detail']}. {pts.capitalize()} pour les {nick(who)}."
-        elif k == "voyage":
-            t = f"{pre}, le voyage : les {f['detail'].replace(' :', ',')}. {pts.capitalize()} pour les {nick(who)}."
-        elif k == "altitude":
-            t = f"{pre}, l'altitude : {f['detail'].lower()}. {pts.capitalize()} pour les {nick(who)}."
+    # Le niveau des équipes : la méthode, puis les chiffres.
+    force = by_key("force")
+    if force:
+        f0 = force[0]
+        sc.append(Scene("methode", "Comment on mesure le niveau",
+                        "Premier argument, et c'est le plus important : le vrai niveau des deux équipes. "
+                        "On ne regarde pas le classement. On mesure, pour 100 possessions, combien chaque équipe "
+                        "marque et combien elle encaisse, en tenant compte de la force des adversaires qu'elle a "
+                        "affrontés, et en donnant plus de poids aux matchs récents."))
+        if fav in rt and other in rt:
+            a_, b_ = rt[fav], rt[other]
+            nums = (f"Résultat : les {F} marquent {fr(a_['off'])} points et en encaissent {fr(a_['def'])} "
+                    f"pour 100 possessions. Les {O} : {fr(b_['off'])} marqués, {fr(b_['def'])} encaissés. ")
         else:
-            t = f"{pre}, {f['label'].lower()} : {f['detail']}. {pts.capitalize()} pour les {nick(who)}."
-        sc.append(Scene(f"facteur{i}", f["label"], t))
-    sc[-1].text += f" Au total, le modèle prévoit une victoire des {nick(fav)} de {fr(spread)} points."
+            nums = ""
+        who = home if f0["points"] >= 0 else away
+        sc.append(Scene("facteur_force", "Niveau des équipes",
+                        f"{nums}Ramené au rythme de ce match, cet écart de niveau vaut à lui seul "
+                        f"{_pts(f0['points'])} d'avance pour les {nick(who)}.", meta={"factor": f0["label"]}))
+
+    rest = sorted([f for f in g["factors"] if f["key"] != "force" and abs(f["points"]) >= 0.3],
+                  key=lambda f: -abs(f["points"]))[:3]
+    n_pour = 0
+    for i, f in enumerate(rest):
+        who = home if f["points"] >= 0 else away
+        pour = who == fav                      # cet élément renforce-t-il le favori ?
+        k, Wn, pts = f["key"], nick(who), _pts(f["points"])
+        team_txt = nick(f.get("team") or who)
+        if pour:
+            n_pour += 1
+            lead = "Deuxième argument" if n_pour == 1 else "Autre argument" if n_pour == 2 else "Et encore"
+        else:
+            lead = f"En face, un point pour les {Wn}"
+        if k == "terrain":
+            t = (f"{lead} : les {nick(home)} jouent à la maison. En NBA, l'avantage du terrain vaut en moyenne "
+                 f"{pts}." + ("" if pour else " Mais c'est loin de suffire à combler l'écart."))
+        elif k == "veille":
+            t = (f"{lead} : la fatigue. Les {team_txt} ont joué hier soir, et dans nos données, enchaîner deux "
+                 f"soirs de suite coûte environ {pts}.")
+        elif k == "3en4":
+            t = f"{lead} : les {team_txt} enchaînent leur troisième match en quatre jours. Ça vaut {pts} pour les {Wn}."
+        elif k in ("effectif", "absents"):
+            det = f["detail"]
+            if " sans " in det:
+                missing = det.split(" sans ", 1)[1].replace(" (absent)", "").replace(" (douteux)", ", incertain,").replace(" (incertain)", ", incertain,")
+                txt = f"les {team_txt} seront privés de {missing.rstrip(',')}"
+            elif "plus complet" in det:
+                txt = f"les {team_txt} retrouvent un effectif plus complet que lors de leurs derniers matchs"
+            else:
+                txt = f"les {team_txt} n'ont pas tout à fait leur effectif habituel"
+            t = (f"{lead} : l'effectif du soir. On regarde qui joue vraiment : {txt}. On a mesuré ce que chaque "
+                 f"joueur apporte quand il est sur le terrain, et ça représente {pts} pour les {Wn}.")
+        elif k == "voyage":
+            t = f"{lead} : le voyage. {f['detail'].replace(' :', ',')}. Ça vaut {pts} pour les {Wn}."
+        elif k == "altitude":
+            t = f"{lead} : l'altitude, toujours difficile pour les visiteurs. Ça vaut {pts} pour les {Wn}."
+        else:
+            t = f"{lead} : {f['label'].lower()}. {f['detail']}. Ça vaut {pts}."
+        sc.append(Scene(f"facteur{i}", f["label"], t, meta={"factor": f["label"]}))
+
+    sc.append(Scene("total", f"{F} par {fr(spread)} pts",
+                    f"On additionne tout ça : victoire des {F} de {fr(spread)} points. "
+                    f"Voilà d'où viennent nos {p} %.", meta={"factor": "Écart prévu"}))
 
     side = "home" if fav == home else "away"
     mn = g["min_odds"][side]
@@ -151,18 +195,21 @@ def script(g: dict, n_games: int) -> list[Scene]:
         best = g["odds"][side]
         bk = g["odds"].get(f"book_{side}") or g["odds"].get("book") or "le bookmaker"
         if best >= mn:
-            verdict = "C'est au-dessus du minimum : selon le modèle, le pari a de la valeur."
+            t = (f"Et côté cotes, bonne nouvelle : la meilleure cote est à {fr(best, 2)} chez {bk}, au-dessus "
+                 f"de notre cote minimum de {fr(mn, 2)}. Selon le modèle, le pari a de la valeur.")
         else:
-            verdict = ("C'est en dessous du minimum : le pari est probable, mais il paie trop peu. "
-                       "À jouer petit, ou en combiné.")
-        t = (f"Côté cotes : la cote minimum conseillée est de {fr(mn, 2)}. "
-             f"La meilleure cote relevée est de {fr(best, 2)}, chez {bk}. {verdict}")
+            t = (f"Petit bémol, on reste honnête : la meilleure cote est à {fr(best, 2)} chez {bk}, sous notre "
+                 f"minimum de {fr(mn, 2)}. Le pari est très probable, mais il rapporte peu : à jouer petit, "
+                 f"ou en combiné.")
     else:
-        t = f"Côté cotes : la cote minimum conseillée est de {fr(mn, 2)}. Compare-la à celle de ton bookmaker."
+        t = f"Côté cotes : notre cote minimum est de {fr(mn, 2)}. Compare-la à celle de ton bookmaker."
     sc.append(Scene("cotes", "Les cotes", t))
-    sc.append(Scene("outro", f"Prono : {nick(fav)}",
-                    f"Pronostic : victoire des {nick(fav)} face aux {nick(other)}, {round(p * 100)} % selon le modèle. "
-                    f"Aucun pari n'est sûr : misez petit. {RESPONSABLE}"))
+    sc.append(Scene("cta", "Abonne-toi",
+                    "Tu veux nos pronos chaque soir, avec toutes les explications ? Abonne-toi, et télécharge "
+                    "l'appli : le lien est dans ma bio. On se retrouve demain pour le prochain match !"))
+    sc.append(Scene("outro", f"Prono : {F}",
+                    "Rappel : aucun pari n'est sûr. Jouer comporte des risques. Appelle le 09 74 75 13 13 "
+                    "pour être aidé."))
     return sc
 
 
@@ -229,15 +276,15 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
         page.evaluate("window.scrollTo(0,0)")
         _shot(page, out / "match.png")
 
-        # Chaque élément qui fait pencher, mis en avant tour à tour.
-        labels = [s for s in scenes if s.key.startswith("facteur")]
-        rows = page.locator(".factor:not(.factor-total)")
+        # Chaque élément qui fait pencher (et le total), mis en avant tour à tour.
+        rows = page.locator(".factor")
         texts = [rows.nth(i).locator(".factor-label").inner_text() for i in range(rows.count())]
-        for s in labels:
-            idx = texts.index(s.title) if s.title in texts else 0
-            page.evaluate("""i => { const rs = [...document.querySelectorAll('.factor:not(.factor-total)')];
+        for s in [x for x in scenes if x.meta and x.meta.get("factor")]:
+            lab = s.meta["factor"]
+            idx = next((i for i, t in enumerate(texts) if t.startswith(lab)), 0)
+            page.evaluate("""i => { const rs = [...document.querySelectorAll('.factor')];
                 rs.forEach((r, j) => { r.style.opacity = j === i ? '1' : '0.28';
-                  r.style.background = j === i ? 'rgba(23,163,90,.08)' : 'transparent';
+                  r.style.background = j === i ? 'rgba(23,163,90,.10)' : 'transparent';
                   r.style.borderRadius = '14px'; r.style.paddingLeft = r.style.paddingRight = '8px'; });
                 rs[i].scrollIntoView({block: 'center'}); }""", idx)
             page.wait_for_timeout(250)
@@ -253,6 +300,18 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
             return {x: 0, y: Math.max(0, top), width: window.innerWidth, height: bottom - Math.max(0, top)};
         }""")
         page.screenshot(path=str(out / "cotes.png"), full_page=True, clip=box)
+
+        # Méthode : l'onglet Forces, réduit aux deux équipes du match (sans numéro de rang).
+        if any(x.key == "methode" for x in scenes):
+            open_("#/forces")
+            page.add_style_tag(content=".rank{display:none!important}")
+            page.evaluate("""names => { document.querySelectorAll('.rank-row').forEach(r => {
+                const n = r.querySelector('.rank-name').textContent.trim();
+                if (!names.includes(n)) r.style.display = 'none';
+                else { r.style.padding = '18px 0'; } }); }""", [TEAMS[g["home"]].name, TEAMS[g["away"]].name])
+            page.evaluate("window.scrollTo(0,0)")
+            page.wait_for_timeout(250)
+            _shot(page, out / "methode.png")
         browser.close()
     srv.shutdown()
     return {"home": logos[".hero .hero-team:first-child svg"], "away": logos[".hero .hero-team:last-child svg"]}
@@ -283,7 +342,7 @@ def phone_frame(shot: Path) -> Image.Image:
 def compose(scene: Scene, shot: Path | None, logos_png: dict, g: dict, out: Path) -> Path:
     canvas = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(canvas)
-    if scene.key in ("intro", "outro"):
+    if scene.key in ("intro", "outro", "cta"):
         _title_card(canvas, scene, logos_png, g)
     else:
         # Bandeau titre.
@@ -306,29 +365,43 @@ def _title_card(canvas: Image.Image, scene: Scene, logos: dict, g: dict) -> None
     home, away = g["home"], g["away"]
     fav = home if g["p_home"] >= 0.5 else away
     p = round(max(g["p_home"], 1 - g["p_home"]) * 100)
+    green = (23, 163, 90)
     if scene.key == "intro":
-        d.text((W // 2, 300), "PRONO DU SOIR", font=font(54, "SemiBold"), fill=(23, 163, 90), anchor="mm")
-        d.text((W // 2, 400), "Le plus sûr de la nuit", font=font(72), fill=INK, anchor="mm")
-        lh, la = logos["home"].resize((360, 360)), logos["away"].resize((360, 360))
-        canvas.paste(lh, (110, 640), lh)
-        canvas.paste(la, (W - 470, 640), la)
-        d.text((W // 2, 820), "vs", font=font(60, "Medium"), fill=MUTED, anchor="mm")
-        d.text((290, 1060), nick(home), font=font(56), fill=INK, anchor="mm")
-        d.text((W - 290, 1060), nick(away), font=font(56), fill=INK, anchor="mm")
-        d.text((290, 1125), "à domicile", font=font(38, "Medium"), fill=MUTED, anchor="mm")
+        d.text((W // 2, 300), "PRONO NBA DU SOIR", font=font(52, "SemiBold"), fill=green, anchor="mm")
+        lh, la = logos["home"].resize((330, 330)), logos["away"].resize((330, 330))
+        canvas.paste(lh, (120, 470), lh)
+        canvas.paste(la, (W - 450, 470), la)
+        d.text((W // 2, 635), "vs", font=font(56, "Medium"), fill=MUTED, anchor="mm")
+        d.text((285, 850), nick(home), font=font(52), fill=INK, anchor="mm")
+        d.text((W - 285, 850), nick(away), font=font(52), fill=INK, anchor="mm")
+        d.text((285, 910), "à domicile", font=font(34, "Medium"), fill=MUTED, anchor="mm")
+        d.text((W // 2, 1150), f"{p} %", font=font(230), fill=INK, anchor="mm")
+        d.text((W // 2, 1310), f"pour les {nick(fav)}", font=font(56, "SemiBold"), fill=INK, anchor="mm")
         tip = g.get("tip_utc")
         if tip:
             t = datetime.fromisoformat(tip).astimezone(ZoneInfo("Europe/Paris"))
-            d.text((W // 2, 1300), f"Coup d'envoi {t:%H:%M}", font=font(48, "Medium"), fill=MUTED, anchor="mm")
+            d.text((W // 2, 1400), f"Coup d'envoi {t:%H:%M}", font=font(40, "Medium"), fill=MUTED, anchor="mm")
+    elif scene.key == "cta":
+        icon = ROOT / "app" / "public" / "icons" / "icon-512.png"
+        if icon.exists():
+            ic = Image.open(icon).convert("RGBA").resize((300, 300))
+            m = Image.new("L", ic.size, 0)
+            ImageDraw.Draw(m).rounded_rectangle([0, 0, 300, 300], 66, fill=255)
+            canvas.paste(ic, ((W - 300) // 2, 380), m)
+        d.text((W // 2, 820), "Un prono expliqué", font=font(76), fill=INK, anchor="mm")
+        d.text((W // 2, 910), "chaque soir", font=font(76), fill=INK, anchor="mm")
+        d.rounded_rectangle([W // 2 - 300, 1030, W // 2 + 300, 1150], 60, fill=INK)
+        d.text((W // 2, 1090), "Abonne-toi", font=font(60), fill=(255, 255, 255), anchor="mm")
+        d.text((W // 2, 1250), "Appli gratuite : lien dans la bio", font=font(46, "SemiBold"), fill=green, anchor="mm")
     else:
-        lf = logos["home" if fav == home else "away"].resize((420, 420))
-        d.text((W // 2, 330), "PRONOSTIC", font=font(54, "SemiBold"), fill=(23, 163, 90), anchor="mm")
-        canvas.paste(lf, ((W - 420) // 2, 470), lf)
-        d.text((W // 2, 1020), f"{nick(fav)} gagnant", font=font(84), fill=INK, anchor="mm")
-        d.text((W // 2, 1150), f"{p} %", font=font(150), fill=INK, anchor="mm")
-        d.text((W // 2, 1270), "selon le modèle", font=font(42, "Medium"), fill=MUTED, anchor="mm")
+        lf = logos["home" if fav == home else "away"].resize((360, 360))
+        d.text((W // 2, 330), "PRONOSTIC", font=font(54, "SemiBold"), fill=green, anchor="mm")
+        canvas.paste(lf, ((W - 360) // 2, 440), lf)
+        d.text((W // 2, 900), f"{nick(fav)} gagnant", font=font(84), fill=INK, anchor="mm")
+        d.text((W // 2, 1030), f"{p} %", font=font(150), fill=INK, anchor="mm")
+        d.text((W // 2, 1150), "selon notre modèle", font=font(42, "Medium"), fill=MUTED, anchor="mm")
         small = font(30, "Medium")
-        y = 1360
+        y = 1300
         for line in ("Aucun pari n'est sûr. Misez petit.", "Jouer comporte des risques : endettement,",
                      "isolement, dépendance. 09 74 75 13 13", "(appel non surtaxé) · Interdit aux mineurs"):
             d.text((W // 2, y), line, font=small, fill=MUTED, anchor="mm")
@@ -357,7 +430,8 @@ def tts(text: str, path: Path, engine: str) -> Path:
         import edge_tts
 
         mp3 = path.with_suffix(".mp3")
-        asyncio.run(edge_tts.Communicate(text, VOICE, rate="+6%").save(str(mp3)))
+        proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+        asyncio.run(edge_tts.Communicate(text, VOICE, rate="+10%", pitch="+2Hz", proxy=proxy).save(str(mp3)))
         return mp3
     if engine == "espeak":
         wav = path.with_suffix(".wav")
@@ -408,7 +482,9 @@ def ass_subs(scenes: list[Scene], starts: list[float], durs: list[float], path: 
 def make(match_id: str | None = None, voice: str = "edge", out_dir: Path | None = None) -> Path:
     today = json.loads((ROOT / "app" / "public" / "data" / "today.json").read_text())
     g = pick_game(today, match_id)
-    scenes = script(g, len(today["games"]))
+    rpath = ROOT / "app" / "public" / "data" / "ratings.json"
+    ratings = json.loads(rpath.read_text()) if rpath.exists() else None
+    scenes = script(g, len(today["games"]), ratings)
     out_dir = out_dir or ROOT / "data" / "videos"
     out_dir.mkdir(parents=True, exist_ok=True)
     name = f"prono_{today['date']}_{g['home']}-{g['away']}"
@@ -421,14 +497,14 @@ def make(match_id: str | None = None, voice: str = "edge", out_dir: Path | None 
         try:
             audios = [tts(s.text, tmp / f"voix_{i}", voice) for i, s in enumerate(scenes)]
         except Exception as e:
-            print(f"Voix « {voice} » indisponible ({e.__class__.__name__}) : voix de secours espeak.")
-            voice = "espeak" if shutil.which("espeak-ng") else "aucune"
+            print(f"Voix « {voice} » indisponible ({e.__class__.__name__}) : vidéo sans voix (sous-titres seuls).")
+            voice = "aucune"
             audios = [tts(s.text, tmp / f"voix_{i}", voice) for i, s in enumerate(scenes)]
         durs = [duration(a) + 0.55 for a in audios]
 
         clips = []
         for i, (s, dur) in enumerate(zip(scenes, durs)):
-            shot = tmp / f"{s.key}.png" if s.key not in ("intro", "outro") else None
+            shot = tmp / f"{s.key}.png" if s.key not in ("intro", "outro", "cta") else None
             frame = compose(s, shot, logos, g, tmp)
             clip = tmp / f"clip_{i}.mp4"
             n = int(dur * FPS) + int(FADE * FPS) + 2
