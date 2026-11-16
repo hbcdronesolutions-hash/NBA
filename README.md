@@ -81,7 +81,7 @@ https://github.com/hbcdronesolutions-hash/NBA/releases/download/video-du-soir/pr
 ## Le modèle (fiche de conception V1)
 
 1. **Force de base** : attaque / défense pour 100 possessions, corrigées de la force des adversaires, demi-vie de 60 jours, a priori de saison passée (70 %, ≈ 8 matchs).
-2. **Effectif du soir (v1.1)** : valeur de chaque joueur mesurée sur 4 saisons (régression « avec / sans » sur l'écart au score, a priori tiré des statistiques individuelles). Ce soir, force de l'effectif disponible (rapport des blessures, effectifs officiels, minutes des 10 derniers matchs de l'équipe) comparée à celle des derniers matchs. Backtest 2025-26 + 2026-27 : log loss 0,595 → 0,581, bons vainqueurs 69,0 % → 69,7 % (bookmakers 0,568).
+2. **Effectif du soir (v1.1)** : valeur de chaque joueur mesurée sur 4 saisons (régression « avec / sans » sur l'écart au score, a priori tiré des statistiques individuelles). Ce soir, force de l'effectif disponible (rapport des blessures, effectifs officiels, minutes des 10 derniers matchs de l'équipe) comparée à celle des derniers matchs. Backtest 2025-26 + 2026-27 avec les rapports de blessures d'époque (information réellement disponible avant le match) : log loss 0,595 → 0,5845, bons vainqueurs 68,6 % (69,0 % sans) ; avec les joueurs réellement présents connus d'avance : 0,581 et 69,7 % (bookmakers 0,568).
 3. **Contexte** : terrain +1,8 · veille −2,1 · 3 en 4 −0,6 · Denver/Utah +1,5 · −0,15 par 1 000 km et par heure de décalage.
 4. Croisement Four Factors : retiré (n'apporte rien au backtest).
 5. **Probabilité** : loi normale, écart-type 13,7 points.

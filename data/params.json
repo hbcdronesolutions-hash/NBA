@@ -12,6 +12,6 @@
   "sigma": 13.49,
   "iterations": 15,
   "version": "v1.1",
-  "roster_k": 1.0,
+  "roster_k": 0.9,
   "rapm_damp": 3.0
 }

@@ -327,7 +327,7 @@ def script(g: dict, today: dict, ratings: dict | None = None, record: dict | Non
     # 9. Total et fiabilité.
     t = f"Total : {F} d'environ {_int(spread)} points, soit {_pct(p)} de chances."
     bt = (record or {}).get("backtest") or {}
-    for b in bt.get("calibration", []):
+    for b in (bt.get("roster") or {}).get("calibration") or bt.get("calibration", []):
         if b["lo"] <= p < b["lo"] + 0.1 + (0.01 if b["lo"] >= 0.9 else 0):
             t += (f" Et ces pourcentages sont vérifiés : quand notre algorithme annonce entre {round(b['lo'] * 100)} et "
                   f"{min(100, round(b['lo'] * 100) + 10)} %, l'équipe gagne {_pct(b['hit'])} du temps.")
