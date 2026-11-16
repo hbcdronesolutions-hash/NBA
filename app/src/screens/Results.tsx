@@ -114,7 +114,7 @@ function ResultCard({ e, nightPick, rank }: { e: JournalEntry; nightPick?: boole
         return (
           <div className={`result-bet nightpick-res ${won ? "won" : "lost"}`}>
             <span>
-              <Sparkles size={13} /> Pari du soir · <TeamLogo abbr={a} size={16} /> {team(a).name} à {odds(np.odds)}
+              <Sparkles size={13} /> Désaccord bookmakers · <TeamLogo abbr={a} size={16} /> {team(a).name} à {odds(np.odds)}
             </span>
             <b>{signed(won ? np.odds - 1 : -1)}</b>
           </div>

@@ -1,12 +1,12 @@
 import { Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { odds, pct } from "../format";
+import { pct } from "../format";
 import { bestNightPick, nightPickFor } from "../results";
 import { team } from "../teams";
 import type { Game } from "../types";
 import { TeamLogo } from "./TeamLogo";
 
-/** Encart discret : le pari du soir (désaccord modèle / bookmaker, meilleure espérance). */
+/** Encart discret : le plus gros désaccord du soir entre notre algorithme et les bookmakers (information, pas un conseil de pari). */
 export function NightPickCard({ games }: { games: Game[] }) {
   const now = Date.now();
   const best = bestNightPick(
@@ -16,23 +16,21 @@ export function NightPickCard({ games }: { games: Game[] }) {
   if (!best) {
     return (
       <div className="nightpick nightpick-none">
-        <Sparkles size={14} /> Pas de pari du soir
+        <Sparkles size={14} /> Pas de désaccord avec les bookmakers ce soir
       </div>
     );
   }
   const { item: g, pick } = best;
   const abbr = pick.side === "home" ? g.home : g.away;
-  const book = pick.side === "home" ? g.odds?.book_home : g.odds?.book_away;
   return (
     <Link to={`/match/${encodeURIComponent(g.id)}`} className="nightpick">
       <span className="nightpick-label">
-        <Sparkles size={13} /> Pari du soir
+        <Sparkles size={13} /> Désaccord bookmakers
       </span>
       <TeamLogo abbr={abbr} size={26} />
       <span className="nightpick-team">{team(abbr).name}</span>
       <span className="nightpick-info">
-        {odds(pick.odds)}
-        {book ? ` · ${book}` : ""} · {pct(pick.p)} %
+        {pct(pick.p)} % pour nous · {pct(pick.book)} % pour eux
       </span>
     </Link>
   );

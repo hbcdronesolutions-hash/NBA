@@ -183,7 +183,7 @@ export function Record() {
 
           {nightPicks.length > 0 && (
             <>
-              <h2 className="section">Pari du soir</h2>
+              <h2 className="section">Désaccord avec les bookmakers</h2>
               <div className="card bets-card">
                 <div>
                   <span className={`bets-val ${np.profit >= 0 ? "pos" : "neg"}`}>{signed(np.profit)}</span>
@@ -200,7 +200,10 @@ export function Record() {
                   <span className="kpi-label">rendement</span>
                 </div>
               </div>
-              <p className="note">{s.live ? "En temps réel" : "Saison rejouée"} · 1 unité par soir, à la meilleure cote relevée.</p>
+              <p className="note">
+                {s.live ? "En temps réel" : "Saison rejouée"} · quand notre algorithme voit gagner l'équipe que les bookmakers voient
+                perdre, 1 unité à la meilleure cote. À titre d'information : sur 2 saisons, test réaliste à −3,8 %.
+              </p>
             </>
           )}
 

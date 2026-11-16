@@ -55,7 +55,7 @@ export function readThreshold(): number {
 }
 
 /**
- * « Pari du soir » : le modèle donne gagnante une équipe que le bookmaker voit perdante
+ * « Désaccord bookmakers » : le modèle donne gagnante une équipe que le bookmaker voit perdante
  * (probabilité implicite < 50 %). Parmi ces cas, celui de plus forte espérance (p × cote − 1).
  */
 export interface NightPick {
@@ -63,6 +63,7 @@ export interface NightPick {
   p: number;
   odds: number;
   ev: number;
+  book: number; // probabilité des bookmakers pour la même équipe
 }
 
 export function nightPickFor(pHome: number, oddsHome: number, oddsAway: number): NightPick | null {
@@ -73,7 +74,7 @@ export function nightPickFor(pHome: number, oddsHome: number, oddsAway: number):
   const ia = 1 / oddsAway;
   const book = side === "home" ? ih / (ih + ia) : ia / (ih + ia);
   if (book >= 0.5) return null;
-  return { side, p, odds: o, ev: p * o - 1 };
+  return { side, p, odds: o, ev: p * o - 1, book };
 }
 
 export function bestNightPick<T>(items: T[], get: (x: T) => NightPick | null): { item: T; pick: NightPick } | null {
