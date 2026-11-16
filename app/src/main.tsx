@@ -21,7 +21,8 @@ registerSW({
 
 // À l'ouverture, toujours démarrer sur « Ce soir » : un ancien match (gardé par le téléphone
 // comme dernière page vue ou adresse de l'icône) ne doit jamais s'afficher au lancement.
-if (location.hash.startsWith("#/match/")) {
+// (sauf pour l'outil de capture de la vidéo, qui ouvre directement la page d'un match)
+if (location.hash.startsWith("#/match/") && !navigator.webdriver) {
   history.replaceState(null, "", location.pathname + location.search + "#/");
 }
 
