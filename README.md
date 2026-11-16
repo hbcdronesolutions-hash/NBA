@@ -74,8 +74,9 @@ captures de l'app (liste du soir, détail, chaque élément qui fait pencher mis
 transitions, sous-titres et voix off qui explique le pronostic (voix neuronale `edge-tts`, secours `espeak-ng`).
 Le texte de la voix off est enregistré à côté (`.txt`). Fin de vidéo : message de jeu responsable.
 
-Automatique chaque jour à 18h23 (Paris) via `.github/workflows/video.yml` ; téléchargement dans
-**Actions → Vidéo du prono → dernier passage → Artifacts**. Lancement manuel possible, avec un identifiant de match.
+Automatique chaque jour à 18h23 (Paris) via `.github/workflows/video.yml`. Lien fixe vers la dernière vidéo :
+https://github.com/hbcdronesolutions-hash/NBA/releases/download/video-du-soir/prono-du-soir.mp4
+(aussi dans **Actions → Vidéo du prono → Artifacts**). Lancement manuel possible, avec un identifiant de match.
 
 ## Le modèle (fiche de conception V1)
 

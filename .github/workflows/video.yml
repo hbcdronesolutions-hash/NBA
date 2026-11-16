@@ -13,7 +13,7 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   video:
@@ -56,6 +56,21 @@ jobs:
       - name: Montage
         working-directory: engine
         run: python -m pronos video ${{ inputs.match && format('--match {0}', inputs.match) || '' }}
+
+      # Lien fixe vers la dernière vidéo (téléchargeable depuis un téléphone, sans compte) :
+      # https://github.com/<dépôt>/releases/download/video-du-soir/prono-du-soir.mp4
+      - name: Publication (lien fixe)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          f=$(ls data/videos/*.mp4 | head -1)
+          cp "$f" data/videos/prono-du-soir.mp4
+          cp "${f%.mp4}.txt" data/videos/prono-du-soir.txt
+          gh release view video-du-soir >/dev/null 2>&1 || \
+            gh release create video-du-soir --title "Vidéo du prono du soir" \
+              --notes "Dernière vidéo du prono du soir, remplacée chaque jour." --latest=false
+          gh release upload video-du-soir data/videos/prono-du-soir.mp4 data/videos/prono-du-soir.txt "$f" --clobber
+          gh release edit video-du-soir --notes "Dernière vidéo : $(basename "$f") — mise à jour $(date -u +'%d/%m/%Y %H:%M') UTC."
 
       - uses: actions/upload-artifact@v4
         with:
