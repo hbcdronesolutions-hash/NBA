@@ -105,6 +105,24 @@ def _pct(x: float) -> str:
     return f"{round(x * 100)} %"
 
 
+OFFERTS = ROOT / "data" / "offerts.csv"
+
+
+def load_offers() -> dict[str, str]:
+    """Match offert en vidéo chaque soir : {date: id du match}."""
+    if not OFFERTS.exists():
+        return {}
+    rows = [l.split(",") for l in OFFERTS.read_text().splitlines()[1:] if "," in l]
+    return {d: m for d, m in rows}
+
+
+def save_offer(date: str, match_id: str) -> None:
+    offers = load_offers()
+    offers[date] = match_id
+    OFFERTS.parent.mkdir(parents=True, exist_ok=True)
+    OFFERTS.write_text("date,match_id\n" + "".join(f"{d},{m}\n" for d, m in sorted(offers.items())))
+
+
 def yesterday_review(record: dict, today: str) -> dict | None:
     """Bilan de la veille (temps réel) + la meilleure « stat positive » disponible."""
     live = [e for e in record.get("journal", []) if e.get("live") is not False and e.get("home_win") is not None
@@ -127,7 +145,8 @@ def yesterday_review(record: dict, today: str) -> dict | None:
         if not hit(top):
             break
         streak += 1
-    offered = night[0]
+    offered_id = load_offers().get(last)
+    offered = next((e for e in night if e["id"] == offered_id), night[0])
     rev = {
         "date": last, "n": n, "hits": h, "rate": h / n, "night": night,
         "winners": [nick(pick(e)) for e in night if hit(e)],
@@ -196,7 +215,7 @@ def script(g: dict, today: dict, ratings: dict | None = None, record: dict | Non
         else:
             t += (f"Le match qu'on t'avait analysé, {on} contre {oo}, n'est pas passé : {sw} à {sl}. "
                   "Ça arrive : aucun prono n'est sûr à 100 %.")
-        sc.append(Scene("veille", "Hier soir", t, meta={"shot": "veille"}))
+        sc.append(Scene("veille", "Hier soir", t, meta={"shot": "veille", "scroll": True}))
     else:
         sc.append(Scene("intro", "Prono NBA du soir", "Ce soir, notre algorithme a analysé tous les matchs NBA de la nuit.",
                         meta={"card": "intro"}))
@@ -320,7 +339,9 @@ def script(g: dict, today: dict, ratings: dict | None = None, record: dict | Non
     mn = g["min_odds"][side]
     if g.get("odds"):
         best = g["odds"][side]
-        bk = g["odds"].get(f"book_{side}") or "le bookmaker"
+        french = g["odds"].get("french", True)
+        bk = g["odds"].get(f"book_{side}") if french else None
+        bk = bk or "les bookmakers"
         pb = g["p_book_home"] if fav == home else 1 - g["p_book_home"]
         if p - pb > 0.10:
             t = (f"Côté cotes, attention : les bookmakers ne donnent les {F} qu'à {_pct(pb)}, cote {fr(best, 2)} chez {bk}, "
@@ -407,7 +428,8 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
             page.add_style_tag(content=".kpis .kpi:nth-child(3), .result-bet, .replay-note, .nights{display:none!important}"
                                        ".kpis{grid-template-columns:1.3fr 1fr!important}")
             page.evaluate("window.scrollTo(0,0)")
-            _shot(page, out / "veille.png")
+            page.wait_for_timeout(200)
+            page.screenshot(path=str(out / "veille.png"), full_page=True)
 
         # Liste du soir : seul le match offert est lisible, les autres sont floutés (réservés aux abonnés).
         open_("#/")
@@ -418,7 +440,7 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
         }); document.querySelectorAll('.nightpick').forEach(e => e.style.display = 'none'); }""", g["id"])
         page.evaluate("id => document.querySelector(`a.game[href=\"#/match/${id}\"]`).scrollIntoView({block:'center'})", g["id"])
         page.wait_for_timeout(300)
-        _shot(page, out / "liste.png")
+        _shot(page, out / "liste.png", f'a.game[href="#/match/{g["id"]}"]')
 
         # Détail du match.
         open_(f"#/match/{g['id']}")
@@ -438,8 +460,10 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
                   r.style.background = j === i ? 'rgba(23,163,90,.10)' : 'transparent';
                   r.style.borderRadius = '14px'; r.style.paddingLeft = r.style.paddingRight = '8px'; });
                 rs[i].scrollIntoView({block: 'center'}); }""", idx)
+            page.evaluate("i => document.querySelectorAll('.factor')[i].setAttribute('data-focus', '1')", idx)
             page.wait_for_timeout(250)
-            _shot(page, out / f"{_safe(shot)}.png")
+            _shot(page, out / f"{_safe(shot)}.png", ".factor[data-focus]")
+            page.evaluate("document.querySelectorAll('.factor[data-focus]').forEach(e => e.removeAttribute('data-focus'))")
         page.evaluate("document.querySelectorAll('.factor').forEach(r => { r.style.opacity='1'; r.style.background='transparent'; })")
 
         # Absents (liste avec le coût de chacun).
@@ -483,8 +507,14 @@ def capture(g: dict, scenes: list[Scene], out: Path) -> dict:
     return {"home": logos[".hero .hero-team:first-child svg"], "away": logos[".hero .hero-team:last-child svg"]}
 
 
-def _shot(page, path: Path) -> None:
+def _shot(page, path: Path, focus: str | None = None) -> None:
+    """Capture + position verticale (0..1) de l'élément à garder au centre du cadre."""
     page.screenshot(path=str(path))
+    fy = 0.0
+    if focus:
+        fy = page.evaluate("""sel => { const e = document.querySelector(sel); if (!e) return 0;
+            const r = e.getBoundingClientRect(); return (r.top + r.height / 2) / window.innerHeight; }""", focus) or 0.0
+    path.with_suffix(".focus").write_text(f"{fy:.4f}")
 
 
 # ------------------------------------------------------------- images 9:16
@@ -505,24 +535,71 @@ def phone_frame(shot: Path) -> Image.Image:
     return framed
 
 
-def compose(scene: Scene, shot: Path | None, logos_png: dict, g: dict, out: Path) -> Path:
-    canvas = Image.new("RGB", (W, H), BG)
+CORNER = 56
+TOP, BOTTOM_SPACE = 300, 340
+
+
+def _rounded(img: Image.Image) -> Image.Image:
+    mask = Image.new("L", img.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, img.width, img.height], CORNER, fill=255)
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    out.paste(img, (0, 0), mask)
+    return out
+
+
+def _title(d: ImageDraw.ImageDraw, text: str) -> None:
+    d.text((W // 2, 210), text, font=font(64), fill=INK, anchor="mm")
+    d.rounded_rectangle([W // 2 - 40, 265, W // 2 + 40, 273], 4, fill=(23, 163, 90))
+
+
+def _shadow(canvas: Image.Image, x: int, y: int, w: int, h: int) -> None:
+    sh = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).rounded_rectangle([x, y + 20, x + w, y + 20 + h], CORNER, fill=(0, 0, 0, 70))
+    canvas.paste(sh.filter(ImageFilter.GaussianBlur(28)), (0, 0), sh.filter(ImageFilter.GaussianBlur(28)))
+
+
+def compose(scene: Scene, shot: Path | None, logos_png: dict, g: dict, out: Path) -> Path | tuple:
+    """Image fixe du plan, ou (fond, bande à faire défiler, fenêtre) pour un plan qui défile."""
+    canvas = Image.new("RGBA", (W, H), BG + (255,))
     d = ImageDraw.Draw(canvas)
     if scene.meta and scene.meta.get("card"):
         _title_card(canvas, scene, logos_png, g)
-    else:
-        # Bandeau titre.
-        f = font(64)
-        d.text((W // 2, 210), scene.title, font=f, fill=INK, anchor="mm")
-        d.rounded_rectangle([W // 2 - 40, 265, W // 2 + 40, 273], 4, fill=(23, 163, 90))
-        fr_ = phone_frame(shot)
-        top = 300
-        maxh = H - top - 340   # place pour les sous-titres
-        if fr_.height > maxh:
-            fr_ = fr_.crop((0, 0, fr_.width, maxh))
-        canvas.paste(fr_, ((W - fr_.width) // 2, top), fr_)
+        path = out / f"{scene.key}_frame.png"
+        canvas.convert("RGB").save(path)
+        return path
+    _title(d, scene.title)
+    img = Image.open(shot).convert("RGB")
+    pw = 900
+    img = img.resize((pw, int(img.height * pw / img.width)), Image.LANCZOS)
+    win_h = H - TOP - BOTTOM_SPACE - 60
+    x = (W - pw) // 2
+    if scene.meta.get("scroll") and img.height > win_h:
+        # Plan qui défile : la bande (capture pleine page) glisse dans une fenêtre arrondie.
+        _shadow(canvas, x, TOP, pw, win_h)
+        bg = out / f"{scene.key}_bg.png"
+        canvas.convert("RGB").save(bg)
+        strip = out / f"{scene.key}_strip.png"
+        img.save(strip)
+        # Coins arrondis : masque posé par-dessus la fenêtre.
+        mask = Image.new("RGBA", (pw, win_h), BG + (255,))
+        hole = Image.new("L", (pw, win_h), 255)
+        ImageDraw.Draw(hole).rounded_rectangle([0, 0, pw, win_h], CORNER, fill=0)
+        mask.putalpha(hole)
+        corners = out / f"{scene.key}_corners.png"
+        mask.save(corners)
+        return (bg, strip, corners, x, TOP, win_h)
+    # Plan fixe : fenêtre centrée sur l'élément important (match du soir, ligne mise en avant…).
+    focus = shot.with_suffix(".focus")
+    fy = float(focus.read_text()) if focus.exists() else 0.0
+    if img.height > win_h:
+        cy = int(fy * img.height) if fy > 0 else win_h // 2
+        y0 = min(max(0, cy - win_h // 2), img.height - win_h)
+        img = img.crop((0, y0, pw, y0 + win_h))
+    _shadow(canvas, x, TOP, pw, img.height)
+    r = _rounded(img)
+    canvas.paste(r, (x, TOP), r)
     path = out / f"{scene.key}_frame.png"
-    canvas.save(path)
+    canvas.convert("RGB").save(path)
     return path
 
 
@@ -673,6 +750,7 @@ def make(match_id: str | None = None, voice: str = "edge", out_dir: Path | None 
     rec_path = ROOT / "app" / "public" / "data" / "record.json"
     record = json.loads(rec_path.read_text()) if rec_path.exists() else None
     scenes = script(g, today, ratings, record)
+    save_offer(today["date"], g["id"])
     out_dir = out_dir or ROOT / "data" / "videos"
     out_dir.mkdir(parents=True, exist_ok=True)
     name = f"prono_{today['date']}_{g['home']}-{g['away']}"
@@ -696,6 +774,22 @@ def make(match_id: str | None = None, voice: str = "edge", out_dir: Path | None 
             frame = compose(s, shot, logos, g, tmp)
             clip = tmp / f"clip_{i}.mp4"
             n = int(dur * FPS) + int(FADE * FPS) + 2
+            if isinstance(frame, tuple):
+                bg, strip, corners, fx, fy, win_h = frame
+                total = dur + FADE
+                # Défilement doux : pause 0,8 s, puis descente jusqu'en bas, pause finale.
+                travel = f"max(0,min(1,(t-0.8)/{max(1.0, total - 2.0):.2f}))"
+                ypos = f"(ih-{win_h})*({travel})*({travel})*(3-2*({travel}))"
+                ypos = f"(ih-{win_h})*(3*pow({travel},2)-2*pow({travel},3))"
+                run(["ffmpeg", "-y", "-loop", "1", "-i", str(bg), "-loop", "1", "-i", str(strip),
+                     "-loop", "1", "-i", str(corners), "-i", str(audios[i]),
+                     "-filter_complex",
+                     f"[1:v]crop=iw:{win_h}:0:'{ypos}'[s];[0:v][s]overlay={fx}:{fy}[b];[b][2:v]overlay={fx}:{fy},"
+                     f"fps={FPS},format=yuv420p[v];[3:a]aresample=48000,apad=whole_dur={total:.2f}[a]",
+                     "-map", "[v]", "-map", "[a]", "-t", f"{total:.2f}", "-c:v", "libx264", "-preset", "veryfast",
+                     "-crf", "20", "-c:a", "aac", "-b:a", "160k", str(clip)])
+                clips.append(clip)
+                continue
             # Zoom lent et léger décalage (effet « Ken Burns »), alterné d'un plan à l'autre.
             zin = i % 2 == 0
             z = "'min(1.0+0.0005*on,1.06)'" if zin else "'max(1.06-0.0005*on,1.0)'"

@@ -72,6 +72,17 @@ jobs:
           gh release upload video-du-soir data/videos/prono-du-soir.mp4 data/videos/prono-du-soir.txt "$f" --clobber
           gh release edit video-du-soir --notes "Dernière vidéo : $(basename "$f") — mise à jour $(date -u +'%d/%m/%Y %H:%M') UTC."
 
+      - name: Mémoire du match offert
+        run: |
+          git config user.name "pronos-bot"
+          git config user.email "pronos-bot@users.noreply.github.com"
+          git add data/offerts.csv
+          if ! git diff --cached --quiet; then
+            git commit -m "Match offert en vidéo $(date -u +%Y-%m-%d)"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: video-prono
