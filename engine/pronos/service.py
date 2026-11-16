@@ -64,6 +64,14 @@ def tonight(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> tuple[p
         pr = predict(g.home, g.away, day, r, p, schedule=sched, absences=abs_, roster=roster)
         payload = game_payload(g.id, g.tip_utc, pr, match_odds(con, g.id),
                                 (g.home_pts, g.away_pts) if pd.notna(g.home_pts) else None)
+        # Détail pour l'explication (vidéo) : chaque absent avec sa valeur, ses minutes et son coût.
+        k = p.roster_k * pace / 100
+        payload["absent_detail"] = [
+            {"team": t, "player": a_["name"], "status": a_["status"], "value": round(a_.get("value", 0.0), 2),
+             "minutes": round(a_.get("minutes", 0.0), 1), "impact": round(a_["impact"] * k, 2)}
+            for t in (g.home, g.away) for a_ in ((roster or {}).get(t) or {}).get("absents", [])]
+        payload["injury_report"] = [{"team": i["team"], "player": i["player"], "status": i["status"]}
+                                    for i in inj if i["team"] in (g.home, g.away)]
         payload["players"] = forecasts(plogs, day, g.home, g.away, r, inj, rosters) if len(plogs) else []
         out.append(payload)
     return day, out

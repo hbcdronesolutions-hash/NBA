@@ -135,7 +135,8 @@ def roster_adjustments(games: pd.DataFrame, pm: pd.DataFrame, values: pd.Series,
         for pid, st, mins in absents:
             with_him = pd.concat([avail[avail["pid"] != pid], pd.DataFrame([(pid, em_team[pid])], columns=["pid", "minutes"])])
             detail.append({"pid": int(pid), "name": names.get(pid, str(pid)), "status": st,
-                           "impact": strength(with_him, values) - s_t})
+                           "impact": strength(with_him, values) - s_t,
+                           "value": float(values.get(pid, UNKNOWN)), "minutes": float(em_team[pid])})
         out[team] = {"delta": s_t - sbar, "absents": sorted(detail, key=lambda a: -a["impact"]),
                      "base_games": int(ps["match_id"].nunique())}
     return out
