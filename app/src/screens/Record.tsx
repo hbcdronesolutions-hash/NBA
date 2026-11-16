@@ -2,8 +2,8 @@ import { CircleCheck } from "lucide-react";
 import { useMemo } from "react";
 import { Empty, Loading, Page } from "../components/Page";
 import { useRecord } from "../data";
-import { pct, pct1, signed } from "../format";
-import { nightPicksHistory, summary, topKHistory } from "../results";
+import { odds, pct, pct1, signed } from "../format";
+import { comboHistory, nightPicksHistory, readThreshold, summary, topKHistory, type ComboKind } from "../results";
 import type { Backtest, CalibrationBin, JournalEntry } from "../types";
 
 const BINS = [0.5, 0.6, 0.7, 0.8, 0.9];
@@ -135,6 +135,48 @@ export function Record() {
                   ))}
                 </div>
                 <p className="note">{s.live ? "En temps réel" : "Saison rejouée"} · à droite : réussite de ces pronos pris un par un.</p>
+              </>
+            );
+          })()}
+
+          {(() => {
+            const pool = data!.journal.filter((e) => e.live !== false);
+            const th = readThreshold();
+            const rows = (
+              [
+                ["all", "Tous les matchs"],
+                ["top3", "3 plus sûrs"],
+                ["top2", "2 plus sûrs"],
+                ["selection", `Sélection ≥ ${Math.round(th * 100)} %`],
+              ] as [ComboKind, string][]
+            ).map(([k, label]) => ({ k, label, ...comboHistory(pool, k, th) }));
+            if (!rows.some((r) => r.n > 0)) return null;
+            return (
+              <>
+                <h2 className="section">Combinés du soir</h2>
+                <div className="card list">
+                  <div className="combo-row combo-head">
+                    <span />
+                    <span>Passés</span>
+                    <span>Résultat</span>
+                  </div>
+                  {rows.map((r) => (
+                    <div key={r.k} className="combo-row">
+                      <span className="combo-label">
+                        {r.label}
+                        {r.best > 0 && <small>meilleure cote gagnée {odds(r.best)}</small>}
+                      </span>
+                      <span className="combo-val">{r.n ? `${r.won}/${r.n}` : "—"}</span>
+                      <span className={`combo-val ${r.n ? (r.profit >= 0 ? "pos" : "neg") : ""}`}>
+                        {r.n ? `${signed(r.profit)} u` : "—"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="note">
+                  En temps réel, depuis le 15 nov. · 1 unité par soir, aux meilleures cotes relevées (bookmakers français en
+                  priorité). Un combiné ne compte que si toutes ses cotes sont connues.
+                </p>
               </>
             );
           })()}

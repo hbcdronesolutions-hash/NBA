@@ -920,3 +920,13 @@ input[type="range"]::-moz-range-thumb {
 .factor-who { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
 .factor-total { align-items: center; }
 .factor-total .factor-label { flex: 1; font-size: 15px; font-weight: 750; }
+
+/* ---------------------------------------------- combinés du soir */
+.combo-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px 86px; align-items: center; gap: 8px; padding: 12px 0; }
+.combo-head { padding: 10px 0 6px; font-size: 11px; font-weight: 650; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.combo-head span, .combo-val { text-align: right; }
+.combo-label { display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: 650; }
+.combo-label small { font-size: 12px; font-weight: 550; color: var(--muted); }
+.combo-val { font-size: 16px; font-weight: 720; }
+.combo-val.pos { color: var(--green); }
+.combo-val.neg { color: var(--red); }

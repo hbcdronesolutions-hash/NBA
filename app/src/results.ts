@@ -120,3 +120,29 @@ export function topKHistory(entries: JournalEntry[], k: number) {
   }
   return { nights: n, allRight, hitRate: n ? hits / (n * k) : NaN };
 }
+
+/** Combinés du soir (1 unité par soir), en temps réel, aux meilleures cotes relevées. */
+export type ComboKind = "all" | "top3" | "top2" | "selection";
+
+export function comboHistory(entries: JournalEntry[], kind: ComboKind, threshold = 0.7) {
+  const nights = new Map<string, JournalEntry[]>();
+  for (const e of entries) if (e.home_win != null) nights.set(e.date, [...(nights.get(e.date) ?? []), e]);
+  let n = 0, won = 0, profit = 0;
+  let best = 0;
+  for (const es of nights.values()) {
+    const sorted = [...es].sort((a, b) => conf(b) - conf(a));
+    const legs =
+      kind === "all" ? sorted : kind === "top3" ? sorted.slice(0, 3) : kind === "top2" ? sorted.slice(0, 2)
+        : sorted.filter((e) => conf(e) >= threshold);
+    if (legs.length < (kind === "top3" ? 3 : 2) || legs.some((e) => !e.odds)) continue;
+    const odds = legs.reduce((acc, e) => acc * (e.p_home >= 0.5 ? e.odds![0] : e.odds![1]), 1);
+    const ok = legs.every(isHit);
+    n += 1;
+    if (ok) {
+      won += 1;
+      profit += odds - 1;
+      best = Math.max(best, odds);
+    } else profit -= 1;
+  }
+  return { n, won, profit, best };
+}
