@@ -174,7 +174,7 @@ def cmd_demo(args) -> None:
 
 def cmd_video(args) -> None:
     from .video import make
-    make(args.match, args.voix)
+    make(args.match, args.voix, once=args.une_fois)
 
 
 def cmd_serve(args) -> None:
@@ -200,6 +200,7 @@ def main() -> None:
     sub.add_parser("demo").set_defaults(f=cmd_demo)
     p = sub.add_parser("video", help="vidéo du prono le plus sûr du soir")
     p.add_argument("--match", default=None); p.add_argument("--voix", default="edge", choices=["edge", "espeak", "aucune"])
+    p.add_argument("--une-fois", action="store_true", help="ne rien faire si la vidéo du soir existe déjà ou si les matchs ont commencé")
     p.set_defaults(f=cmd_video)
     p = sub.add_parser("serve"); p.add_argument("--port", type=int, default=8501); p.set_defaults(f=cmd_serve)
     args = ap.parse_args()

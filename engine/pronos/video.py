@@ -716,8 +716,17 @@ def ass_subs(scenes: list[Scene], starts: list[float], durs: list[float], path: 
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def make(match_id: str | None = None, voice: str = "edge", out_dir: Path | None = None) -> Path:
+def make(match_id: str | None = None, voice: str = "edge", out_dir: Path | None = None, once: bool = False) -> Path | None:
     today = json.loads((ROOT / "app" / "public" / "data" / "today.json").read_text())
+    if once:
+        if today["date"] in load_offers():
+            print(f"Vidéo du {today['date']} déjà faite : rien à faire.")
+            return None
+        now = datetime.now(ZoneInfo("UTC"))
+        if not any(not g.get("result") and g.get("tip_utc") and datetime.fromisoformat(g["tip_utc"]) > now
+                   for g in today["games"]):
+            print("Plus aucun match à venir ce soir : trop tard pour la vidéo.")
+            return None
     g = pick_game(today, match_id)
     rpath = ROOT / "app" / "public" / "data" / "ratings.json"
     ratings = json.loads(rpath.read_text()) if rpath.exists() else None

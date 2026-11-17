@@ -3,8 +3,14 @@ name: Vidéo du prono
 # Vidéo verticale (1080×1920) du prono le plus sûr du soir, avec voix off.
 # Téléchargement : onglet Actions → « Vidéo du prono » → dernier passage → Artifacts.
 on:
+  # GitHub retarde souvent les tâches planifiées (parfois de plusieurs heures) : plusieurs créneaux,
+  # la première qui passe fabrique la vidéo du soir, les suivantes s'arrêtent tout de suite.
   schedule:
-    - cron: "23 17 * * *"   # 18h23 Paris (hiver), après le rapport des blessures de l'après-midi
+    - cron: "13 16 * * *"   # 17h13 Paris (hiver)
+    - cron: "43 16 * * *"
+    - cron: "13 17 * * *"
+    - cron: "43 17 * * *"
+    - cron: "13 18 * * *"
   workflow_dispatch:
     inputs:
       match:
@@ -54,12 +60,17 @@ jobs:
           cd app && npm ci && npm run build
 
       - name: Montage
+        id: montage
         working-directory: engine
-        run: python -m pronos video ${{ inputs.match && format('--match {0}', inputs.match) || '' }}
+        run: |
+          python -m pronos video ${{ github.event_name == 'schedule' && '--une-fois' || '' }} \
+            ${{ inputs.match && format('--match {0}', inputs.match) || '' }}
+          if ls ../data/videos/*.mp4 >/dev/null 2>&1; then echo "ok=1" >> "$GITHUB_OUTPUT"; fi
 
       # Lien fixe vers la dernière vidéo (téléchargeable depuis un téléphone, sans compte) :
       # https://github.com/<dépôt>/releases/download/video-du-soir/prono-du-soir.mp4
       - name: Publication (lien fixe)
+        if: steps.montage.outputs.ok == '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -73,17 +84,19 @@ jobs:
           gh release edit video-du-soir --notes "Dernière vidéo : $(basename "$f") — mise à jour $(date -u +'%d/%m/%Y %H:%M') UTC."
 
       - name: Mémoire du match offert
+        if: steps.montage.outputs.ok == '1'
         run: |
           git config user.name "pronos-bot"
           git config user.email "pronos-bot@users.noreply.github.com"
           git add data/offerts.csv
           if ! git diff --cached --quiet; then
             git commit -m "Match offert en vidéo $(date -u +%Y-%m-%d)"
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git pull --rebase --autostash -X theirs origin "${GITHUB_REF_NAME}"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
 
       - uses: actions/upload-artifact@v4
+        if: steps.montage.outputs.ok == '1'
         with:
           name: video-prono
           path: |
