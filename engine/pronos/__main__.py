@@ -65,7 +65,10 @@ def french_odds(con) -> None:
         con.execute("INSERT OR REPLACE INTO meta VALUES ('odds_restant', ?)", (str(rem),))
     if odds:
         n, nl = C.store_odds(con, odds)
-        print(f"Cotes The Odds API : {n} cotes vainqueur, {nl} handicaps français")
+        from collections import Counter
+        books = Counter(o["bookmaker"] for o in odds if o.get("line"))
+        detail = ", ".join(f"{b} {k}" for b, k in books.most_common()) or "aucun"
+        print(f"Cotes The Odds API : {n} cotes vainqueur, {nl} handicaps français ({detail})")
     con.commit()
 
 
