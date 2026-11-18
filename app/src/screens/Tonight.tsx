@@ -1,12 +1,14 @@
 import { House, Moon } from "lucide-react";
 import { Link } from "react-router-dom";
+import { fmtLine, HandicapBanner } from "../components/HandicapBanner";
 import { NightPickCard } from "../components/NightPickCard";
+import { handicapSentence } from "./SpreadTab";
 import { OddsPill } from "../components/OddsPill";
 import { DemoChip, Empty, Loading, Page } from "../components/Page";
 import { ProbBar } from "../components/ProbBar";
 import { TeamLogo } from "../components/TeamLogo";
 import { useToday } from "../data";
-import { longDate, pct, tipTime } from "../format";
+import { longDate, odds, pct, tipTime } from "../format";
 import { team } from "../teams";
 import type { Game, Side } from "../types";
 
@@ -17,6 +19,7 @@ export function Tonight() {
       {error && <Empty icon={<Moon />} title="Données indisponibles" text="Lance « python -m pronos soir » sur ton PC." />}
       {!data && !error && <Loading />}
       {data && data.games.length === 0 && <Empty icon={<Moon />} title="Pas de match cette nuit" />}
+      {data && data.games.length > 0 && <HandicapBanner games={data.games} />}
       {data && data.games.length > 0 && <NightPickCard games={data.games} />}
       {data && (
         <div className="stack">
@@ -44,6 +47,14 @@ function GameCard({ g }: { g: Game }) {
       <Row g={g} side="home" fav={favHome} />
       <Row g={g} side="away" fav={!favHome} />
       <ProbBar away={g.away} home={g.home} pHome={g.p_home} pBookHome={g.p_book_home} divergence={g.divergence} />
+      {g.handicap?.signal && !g.result && (
+        <div className="hcap-line">
+          <span>
+            Handicap à jouer : <b>{team(g.home).name} {fmtLine(g.handicap.line)}</b> · {odds(g.handicap.odds_home)}
+          </span>
+          <small>{handicapSentence(team(g.home).name, g.handicap.line).replace("Pour gagner ce pari, les", "Les")}</small>
+        </div>
+      )}
     </Link>
   );
 }

@@ -947,3 +947,31 @@ input[type="range"]::-moz-range-thumb {
 .hcap-note { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .hcap-res.won { background: #ecebfd; color: #5b4bd6; }
 .hcap-rule { margin: 0 0 8px; padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 14px; font-weight: 650; color: var(--ink); line-height: 1.4; }
+
+/* ------------------------------------- handicap : bandeau, carte, suivi */
+.hbanner { margin: -6px 0 14px; padding: 10px 12px; border-radius: 14px; background: #ecebfd; color: #3f33b8; }
+.hbanner-none { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; font-weight: 550; }
+.hbanner-title { display: block; font-size: 11px; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
+.hbanner-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.hbanner-row + .hbanner-row { border-top: 1px solid rgba(91, 75, 214, 0.15); }
+.hbanner-team { flex: 1; font-size: 16px; font-weight: 720; }
+.hbanner-odds { font-size: 15px; font-weight: 700; }
+@media (prefers-color-scheme: dark) { .hbanner { background: #24214a; color: #b7afff; } .hbanner-none { background: transparent; color: var(--muted); } }
+.hcap-line { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; padding: 8px 10px; border-radius: 12px; background: #ecebfd; color: #3f33b8; font-size: 13px; }
+.hcap-line b { font-weight: 750; }
+.hcap-line small { font-size: 12px; opacity: 0.85; }
+@media (prefers-color-scheme: dark) { .hcap-line { background: #24214a; color: #b7afff; } }
+.htrack { padding: 14px 16px; margin-bottom: 14px; }
+.htrack-head { display: flex; justify-content: space-between; font-size: 14px; font-weight: 650; color: var(--ink-2); }
+.htrack-head b { color: var(--ink); }
+.htrack-bar { height: 8px; border-radius: 99px; background: var(--seg-muted); margin: 10px 0 12px; overflow: hidden; }
+.htrack-bar span { display: block; height: 100%; border-radius: 99px; background: #5b4bd6; }
+.htrack-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.htrack-stats div { display: flex; flex-direction: column; gap: 2px; }
+.htrack-stats b { font-size: 20px; font-weight: 750; letter-spacing: -0.02em; }
+.htrack-stats b.pos { color: var(--green); }
+.htrack-stats b.neg { color: var(--red); }
+.htrack-stats small { font-size: 11px; color: var(--muted); font-weight: 550; }
+.htrack-verdict { margin: 10px 0 0; font-size: 13px; font-weight: 650; color: var(--ink-2); }
+.htrack.is-ok .htrack-verdict { color: var(--green); }
+.htrack.is-ko .htrack-verdict { color: var(--red); }

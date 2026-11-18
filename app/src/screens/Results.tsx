@@ -7,6 +7,7 @@ import { useRecord } from "../data";
 import { odds, pct, shortDate, signed } from "../format";
 import { advisedBet, bestNightPick, handicapBet, isHit, nightPickFor, pickSide, readThreshold, summary, topK } from "../results";
 import { team } from "../teams";
+import { HandicapTracker } from "../components/HandicapTracker";
 import type { JournalEntry, Side } from "../types";
 
 export function Results() {
@@ -32,6 +33,8 @@ export function Results() {
       {data && nights.length === 0 && (
         <Empty icon={<ListChecks />} title="Pas encore de résultat" text="Les scores arrivent le lendemain matin." />
       )}
+
+      {data && <HandicapTracker journal={data.journal} />}
 
       {nights.length > 0 && (
         <div className="nights">
