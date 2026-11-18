@@ -37,6 +37,7 @@ function GameCard({ g }: { g: Game }) {
     <Link to={`/match/${encodeURIComponent(g.id)}`} className="card game">
       <div className="game-top">
         <span className="time">{tipTime(g.tip_utc)}</span>
+        {g.handicap?.signal && <span className="hcap">Signal handicap</span>}
         {g.divergence && <span className="flag">Écart bookmakers</span>}
         {g.result && <span className="final">Terminé</span>}
       </div>

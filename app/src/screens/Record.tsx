@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Empty, Loading, Page } from "../components/Page";
 import { useRecord } from "../data";
 import { odds, pct, pct1, signed } from "../format";
-import { comboHistory, nightPicksHistory, readThreshold, summary, topKHistory, type ComboKind } from "../results";
+import { comboHistory, handicapHistory, nightPicksHistory, readThreshold, summary, topKHistory, type ComboKind } from "../results";
 import type { Backtest, CalibrationBin, JournalEntry } from "../types";
 
 const BINS = [0.5, 0.6, 0.7, 0.8, 0.9];
@@ -176,6 +176,33 @@ export function Record() {
                 <p className="note">
                   En temps réel, depuis le 15 nov. · 1 unité par soir, aux meilleures cotes relevées (bookmakers français en
                   priorité). Un combiné ne compte que si toutes ses cotes sont connues.
+                </p>
+              </>
+            );
+          })()}
+
+          {(() => {
+            const h = handicapHistory(data!.journal.filter((e) => e.live !== false));
+            return (
+              <>
+                <h2 className="section">Règle handicap domicile</h2>
+                <div className="card bets-card">
+                  <div>
+                    <span className={`bets-val ${h.n ? (h.profit >= 0 ? "pos" : "neg") : ""}`}>{h.n ? signed(h.profit) : "—"}</span>
+                    <span className="kpi-label">unités</span>
+                  </div>
+                  <div>
+                    <span className="bets-val">{h.n ? `${h.won}/${h.n - h.push}` : "—"}</span>
+                    <span className="kpi-label">gagnés</span>
+                  </div>
+                  <div>
+                    <span className="bets-val">{h.n - h.push > 0 ? `${pct(h.won / (h.n - h.push))} %` : "—"}</span>
+                    <span className="kpi-label">réussite</span>
+                  </div>
+                </div>
+                <p className="note">
+                  En temps réel · handicap de l'équipe à domicile quand notre écart dépasse la ligne d'au moins 4 pts.
+                  Objectif : plus de 53 % de réussite. Test sur 3 saisons : 55,2 % (290 paris, +5,4 %).
                 </p>
               </>
             );

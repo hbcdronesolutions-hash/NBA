@@ -70,6 +70,26 @@ def _moneyline(comp: dict) -> tuple[float | None, float | None, str | None]:
     return None, None, None
 
 
+def _spread(comp: dict) -> dict | None:
+    """Ligne de handicap (point de vue domicile : l'équipe à domicile couvre si écart + ligne > 0) et total."""
+    for o in comp.get("odds") or []:
+        if o.get("spread") is None:
+            continue
+        ps = o.get("pointSpread") or {}
+        hl = ((ps.get("home") or {}).get("close") or {}).get("line")
+        try:
+            line = float(hl) if hl not in (None, "") else float(o["spread"])
+        except ValueError:
+            line = float(o["spread"])
+        oh = american_to_decimal(((ps.get("home") or {}).get("close") or {}).get("odds")
+                                 or (o.get("homeTeamOdds") or {}).get("spreadOdds")) or 1.91
+        oa = american_to_decimal(((ps.get("away") or {}).get("close") or {}).get("odds")
+                                 or (o.get("awayTeamOdds") or {}).get("spreadOdds")) or 1.91
+        return {"line": line, "odds_h": oh, "odds_a": oa, "total": o.get("overUnder"),
+                "book": (o.get("provider") or {}).get("name", "Bookmaker")}
+    return None
+
+
 def fetch_day(d: date) -> list[dict]:
     data = _get(f"{BASE}/scoreboard", {"dates": d.strftime("%Y%m%d"), "limit": 50})
     out = []
@@ -84,6 +104,7 @@ def fetch_day(d: date) -> list[dict]:
         tip = datetime.fromisoformat(ev["date"].replace("Z", "+00:00"))
         done = comp["status"]["type"].get("completed", False)
         oh, oa, book = _moneyline(comp)
+        sp = _spread(comp)
         out.append({
             "id": f"espn-{ev['id']}", "espn_id": ev["id"],
             "season": season_label((ev.get("season") or {}).get("year", tip.year + 1) - 1),
@@ -91,7 +112,7 @@ def fetch_day(d: date) -> list[dict]:
             "home": home, "away": away,
             "home_pts": int(teams["home"]["score"]) if done else None,
             "away_pts": int(teams["away"]["score"]) if done else None,
-            "done": done, "odds_home": oh, "odds_away": oa, "book": book,
+            "done": done, "odds_home": oh, "odds_away": oa, "book": book, "spread_line": sp,
         })
     return out
 
@@ -145,7 +166,8 @@ def fetch_summary(espn_id: str) -> dict:
                     "blk": num("BLK"), "tov": num("TO"), "pf": num("PF"),
                 })
     oh, oa, book = _moneyline({"odds": d.get("pickcenter") or []})
-    return {"teams": teams, "players": players, "odds": (oh, oa, book) if oh and oa else None}
+    sp = _spread({"odds": d.get("pickcenter") or []})
+    return {"teams": teams, "players": players, "odds": (oh, oa, book) if oh and oa else None, "spread_line": sp}
 
 
 # ------------------------------------------------------------------- stockage
@@ -160,6 +182,8 @@ def store_games(con: sqlite3.Connection, games: list[dict]) -> None:
             "statut=excluded.statut",
             (g["id"], g["season"], g["date"], g["tip_utc"], g["home"], g["away"], g["home_pts"],
              g["away_pts"], "termine" if g["done"] else "prevu"))
+        if g.get("spread_line") and not g["done"]:
+            store_line(con, g["id"], g["spread_line"], now)
         if g["odds_home"] and g["odds_away"]:
             # Cotes des matchs passés : datées de l'heure du match (dernières connues avant).
             stamp = g["tip_utc"] if g["done"] else now
@@ -168,10 +192,17 @@ def store_games(con: sqlite3.Connection, games: list[dict]) -> None:
     con.commit()
 
 
+def store_line(con: sqlite3.Connection, gid: str, sp: dict, stamp: str, replace: bool = True) -> None:
+    con.execute(f"INSERT OR {'REPLACE' if replace else 'IGNORE'} INTO lignes VALUES (?,?,?,?,?,?,?)",
+                (gid, sp["book"], sp["line"], sp["odds_h"], sp["odds_a"], sp.get("total"), stamp))
+
+
 def store_summary(con: sqlite3.Connection, gid: str, summ: dict, scores: dict[str, int], tip: str | None = None) -> None:
     if summ.get("odds") and tip:
         oh, oa, book = summ["odds"]
         con.execute("INSERT OR IGNORE INTO cotes VALUES (?,?,?,?,?)", (gid, book, oh, oa, tip))
+    if summ.get("spread_line") and tip:
+        store_line(con, gid, summ["spread_line"], tip, replace=False)
     for t in summ["teams"]:
         con.execute("INSERT OR REPLACE INTO stats_equipe_match VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                     (gid, t["team"], scores.get(t["team"]), _possessions(t["fga"], t["oreb"], t["tov"], t["fta"]),

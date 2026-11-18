@@ -5,7 +5,7 @@ import { Empty, Loading, Page } from "../components/Page";
 import { TeamLogo } from "../components/TeamLogo";
 import { useRecord } from "../data";
 import { odds, pct, shortDate, signed } from "../format";
-import { advisedBet, bestNightPick, isHit, nightPickFor, pickSide, readThreshold, summary, topK } from "../results";
+import { advisedBet, bestNightPick, handicapBet, isHit, nightPickFor, pickSide, readThreshold, summary, topK } from "../results";
 import { team } from "../teams";
 import type { JournalEntry, Side } from "../types";
 
@@ -117,6 +117,19 @@ function ResultCard({ e, nightPick, rank }: { e: JournalEntry; nightPick?: boole
               <Sparkles size={13} /> Désaccord bookmakers · <TeamLogo abbr={a} size={16} /> {team(a).name} à {odds(np.odds)}
             </span>
             <b>{signed(won ? np.odds - 1 : -1)}</b>
+          </div>
+        );
+      })()}
+      {(() => {
+        const hb = handicapBet(e);
+        if (!hb || !hb.result) return null;
+        return (
+          <div className={`result-bet hcap-res ${hb.result === "gagné" ? "won" : "lost"}`}>
+            <span>
+              Handicap · <TeamLogo abbr={e.home} size={16} /> {team(e.home).name} {hb.line > 0 ? "+" : hb.line < 0 ? "−" : ""}
+              {Math.abs(hb.line).toFixed(1).replace(".", ",")} · {hb.result}
+            </span>
+            <b>{signed(hb.profit ?? 0)}</b>
           </div>
         );
       })()}

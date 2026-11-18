@@ -930,3 +930,19 @@ input[type="range"]::-moz-range-thumb {
 .combo-val { font-size: 16px; font-weight: 720; }
 .combo-val.pos { color: var(--green); }
 .combo-val.neg { color: var(--red); }
+
+/* ------------------------------------------- règle handicap domicile */
+.hcap { font-size: 11px; font-weight: 650; color: #5b4bd6; background: #ecebfd; padding: 3px 8px; border-radius: 99px; }
+.game-top .hcap { margin-left: auto; }
+.game-top .hcap + .flag { margin-left: 6px; }
+@media (prefers-color-scheme: dark) { .hcap { background: #24214a; color: #a59cff; } }
+.hcap-card { padding: 14px 16px; margin-bottom: 14px; box-shadow: var(--shadow), inset 0 0 0 1px var(--line); }
+.hcap-card.is-on { box-shadow: var(--shadow), inset 0 0 0 2px #5b4bd6; }
+.hcap-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 650; color: var(--ink-2); }
+.hcap-head b { font-size: 13px; color: var(--muted); }
+.hcap-card.is-on .hcap-head b { color: #5b4bd6; }
+.hcap-card dl { display: grid; grid-template-columns: 1fr auto; row-gap: 8px; margin: 12px 0 8px; font-size: 14px; }
+.hcap-card dt { color: var(--muted); }
+.hcap-card dd { margin: 0; text-align: right; font-weight: 650; }
+.hcap-note { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.hcap-res.won { background: #ecebfd; color: #5b4bd6; }

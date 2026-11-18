@@ -363,7 +363,7 @@ def serve(dist: Path) -> tuple[ThreadingHTTPServer, int]:
     return srv, srv.server_address[1]
 
 
-HIDE = (".tabbar,.nightpick,.pill,.probbar-tick,.flag,.book,.odds-grid,.books,.legend,.result-bet,.note{display:none!important}"
+HIDE = (".tabbar,.nightpick,.hcap,.hcap-card,.pill,.probbar-tick,.flag,.book,.odds-grid,.books,.legend,.result-bet,.note{display:none!important}"
         "*{animation:none!important;transition:none!important}")
 # Vocabulaire de pari remplacé à l'écran (règles TikTok sur les jeux d'argent).
 RENAME_JS = """() => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);

@@ -72,9 +72,34 @@ def tonight(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> tuple[p
             for t in (g.home, g.away) for a_ in ((roster or {}).get(t) or {}).get("absents", [])]
         payload["injury_report"] = [{"team": i["team"], "player": i["player"], "status": i["status"]}
                                     for i in inj if i["team"] in (g.home, g.away)]
+        payload["handicap"] = handicap_signal(con, g.id, pr.spread)
         payload["players"] = forecasts(plogs, day, g.home, g.away, r, inj, rosters) if len(plogs) else []
         out.append(payload)
     return day, out
+
+
+HANDICAP_EDGE = 4.0   # règle testée : notre écart dépasse la ligne d'au moins 4 points en faveur du domicile
+
+
+def latest_line(con: sqlite3.Connection, gid: str, before: str | None = None) -> dict | None:
+    q = "SELECT bookmaker, handicap_dom, cote_dom, cote_ext, total, releve FROM lignes WHERE match_id=?"
+    args: list = [gid]
+    if before:
+        q += " AND releve <= ?"
+        args.append(before)
+    r = con.execute(q + " ORDER BY releve DESC LIMIT 1", args).fetchone()
+    return dict(r) if r else None
+
+
+def handicap_signal(con: sqlite3.Connection, gid: str, model_spread: float) -> dict | None:
+    """Règle « handicap domicile » : parier le handicap de l'équipe à domicile quand notre écart prévu
+    dépasse la ligne du bookmaker d'au moins 4 points (test : 55 % sur 290 matchs, non prouvé)."""
+    ln = latest_line(con, gid)
+    if not ln:
+        return None
+    edge = model_spread + ln["handicap_dom"]
+    return {"line": ln["handicap_dom"], "odds_home": ln["cote_dom"], "odds_away": ln["cote_ext"],
+            "book": ln["bookmaker"], "edge": round(edge, 1), "signal": edge >= HANDICAP_EDGE}
 
 
 def match_odds(con: sqlite3.Connection, gid: str) -> dict | None:
@@ -189,6 +214,11 @@ def _latest_odds(con: sqlite3.Connection) -> dict[str, tuple[float, float]]:
     return out
 
 
+def _line_for(con: sqlite3.Connection, gid: str, tip: str | None) -> list | None:
+    ln = latest_line(con, gid, tip if isinstance(tip, str) and tip else None) or latest_line(con, gid)
+    return [ln["handicap_dom"], ln["cote_dom"]] if ln else None
+
+
 def replay_season(games: pd.DataFrame, season: str, p: R.Params) -> pd.DataFrame:
     """Saison en cours rejouée match par match, sans information postérieure (pas les absents)."""
     sg = games[games["season"] == season].sort_values("date")
@@ -219,6 +249,7 @@ def record_payload(con: sqlite3.Connection, day: pd.Timestamp | None = None) -> 
             "home_win": int(g["home_pts"] > g["away_pts"]) if done else None,
             "score": [int(g["home_pts"]), int(g["away_pts"])] if done else None,
             "odds": [o[0], o[1]] if o and o[0] and o[1] else None,
+            "line": _line_for(con, gid, g["tip_utc"]),
             "live": live,
         }
 

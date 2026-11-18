@@ -48,6 +48,11 @@ CREATE TABLE IF NOT EXISTS notes_equipes (
     date TEXT, equipe TEXT, attaque REAL, defense REAL, rythme REAL,
     PRIMARY KEY (date, equipe)
 );
+-- Lignes de handicap (point de vue domicile) et total, relevées avant le match.
+CREATE TABLE IF NOT EXISTS lignes (
+    match_id TEXT, bookmaker TEXT, handicap_dom REAL, cote_dom REAL, cote_ext REAL, total REAL, releve TEXT,
+    PRIMARY KEY (match_id, bookmaker, releve)
+);
 -- Effectif actuel de chaque équipe (transferts pris en compte avant le premier match).
 CREATE TABLE IF NOT EXISTS effectifs (
     joueur_id INTEGER PRIMARY KEY, nom TEXT, equipe TEXT, maj TEXT

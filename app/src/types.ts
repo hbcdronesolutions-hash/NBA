@@ -55,6 +55,7 @@ export interface Game {
   verdict: Record<Side, Verdict>;
   result: { home: number; away: number } | null;
   players?: PlayerForecast[];
+  handicap?: { line: number; odds_home: number; odds_away: number; book: string; edge: number; signal: boolean } | null;
 }
 
 export interface Today {
@@ -94,6 +95,7 @@ export interface JournalEntry {
   odds: [number, number] | null;
   tip_utc?: string | null;
   spread?: number | null;
+  line?: [number, number] | null; // ligne de handicap (point de vue domicile) et cote du domicile
   live?: boolean;
 }
 

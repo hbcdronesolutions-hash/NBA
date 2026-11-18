@@ -19,6 +19,8 @@ export function SpreadTab({ g, sigma }: { g: Game; sigma: number }) {
 
   return (
     <>
+      {g.handicap && <HandicapCard g={g} />}
+
       <div className="team-toggle">
         {(["home", "away"] as const).map((s) => {
           const a = s === "home" ? g.home : g.away;
@@ -68,6 +70,32 @@ export function Outcome({ abbr, text, p, margin = MARGIN_SPREAD }: { abbr: strin
         </span>
         <span className="outcome-odds">min {odds(minOdds(p, margin))}</span>
       </div>
+    </div>
+  );
+}
+
+function HandicapCard({ g }: { g: Game }) {
+  const h = g.handicap!;
+  const home = team(g.home).name;
+  const lineTxt = `${h.line > 0 ? "+" : h.line < 0 ? "−" : ""}${Math.abs(h.line).toFixed(1).replace(".", ",")}`;
+  const ours = g.spread >= 0 ? `${home} par ${g.spread.toFixed(1).replace(".", ",")}` : `${team(g.away).name} par ${(-g.spread).toFixed(1).replace(".", ",")}`;
+  return (
+    <div className={`card hcap-card${h.signal ? " is-on" : ""}`}>
+      <div className="hcap-head">
+        <span>Règle handicap domicile</span>
+        <b>{h.signal ? "Signal" : "Pas de signal"}</b>
+      </div>
+      <dl>
+        <dt>Ligne {h.book}</dt>
+        <dd>
+          {home} {lineTxt} · {odds(h.odds_home)}
+        </dd>
+        <dt>Notre écart prévu</dt>
+        <dd>{ours}</dd>
+        <dt>Avance sur la ligne (domicile)</dt>
+        <dd>{(h.edge > 0 ? "+" : h.edge < 0 ? "−" : "") + Math.abs(h.edge).toFixed(1).replace(".", ",")} pts</dd>
+      </dl>
+      <p className="hcap-note">Signal quand notre écart dépasse la ligne d'au moins 4 pts pour le domicile. Test sur 3 saisons : 55 % de réussite (290 paris), non prouvé.</p>
     </div>
   );
 }

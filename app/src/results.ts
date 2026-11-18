@@ -147,3 +147,29 @@ export function comboHistory(entries: JournalEntry[], kind: ComboKind, threshold
   }
   return { n, won, profit, best };
 }
+
+
+/** Règle « handicap domicile » : notre écart prévu dépasse la ligne d'au moins 4 points pour le domicile. */
+export const HANDICAP_EDGE = 4;
+
+export function handicapBet(e: JournalEntry): { line: number; odds: number; result: "gagné" | "perdu" | "remboursé" | null; profit: number | null } | null {
+  if (!e.line || e.spread == null || e.spread + e.line[0] < HANDICAP_EDGE) return null;
+  const [line, odds] = e.line;
+  if (!e.score) return { line, odds, result: null, profit: null };
+  const cover = e.score[0] - e.score[1] + line;
+  if (cover === 0) return { line, odds, result: "remboursé", profit: 0 };
+  return cover > 0 ? { line, odds, result: "gagné", profit: odds - 1 } : { line, odds, result: "perdu", profit: -1 };
+}
+
+export function handicapHistory(entries: JournalEntry[]) {
+  let n = 0, won = 0, push = 0, profit = 0;
+  for (const e of entries) {
+    const b = handicapBet(e);
+    if (!b || b.result == null) continue;
+    n += 1;
+    if (b.result === "gagné") won += 1;
+    if (b.result === "remboursé") push += 1;
+    profit += b.profit ?? 0;
+  }
+  return { n, won, push, profit };
+}
