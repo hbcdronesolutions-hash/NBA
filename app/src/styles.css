@@ -975,3 +975,11 @@ input[type="range"]::-moz-range-thumb {
 .htrack-verdict { margin: 10px 0 0; font-size: 13px; font-weight: 650; color: var(--ink-2); }
 .htrack.is-ok .htrack-verdict { color: var(--green); }
 .htrack.is-ko .htrack-verdict { color: var(--red); }
+
+/* ------------------------------------- écart prévu face à l'écart réel */
+.result-spread { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+.result-spread b { color: var(--ink-2); font-weight: 650; }
+.result-spread-err { margin-left: auto; font-weight: 650; padding: 2px 8px; border-radius: 99px; background: var(--gray-bg); color: var(--ink-2); }
+.result-spread-err.good { background: var(--green-bg); color: var(--green); }
+.result-spread-err.bad { background: #fbe6e4; color: var(--red); }
+@media (prefers-color-scheme: dark) { .result-spread-err.bad { background: #34181a; } }

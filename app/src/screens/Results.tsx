@@ -110,6 +110,7 @@ function ResultCard({ e, nightPick, rank }: { e: JournalEntry; nightPick?: boole
       <div className={`result-mark ${hit ? "ok" : "ko"}`}>{hit ? <Check size={14} strokeWidth={3} /> : <X size={14} strokeWidth={3} />}</div>
       <Row e={e} side="home" pick={pick} />
       <Row e={e} side="away" pick={pick} />
+      <SpreadCompare e={e} />
       {nightPick && (() => {
         const np = nightPickFor(e.p_home, e.odds![0], e.odds![1])!;
         const won = (np.side === "home") === (e.home_win === 1);
@@ -163,6 +164,28 @@ function Row({ e, side, pick }: { e: JournalEntry; side: Side; pick: Side }) {
       </span>
       {pick === side && <span className="result-pick">Prono {pct(p)} %</span>}
       <span className="result-pts">{pts ?? "—"}</span>
+    </div>
+  );
+}
+
+/** Écart prévu par l'algorithme avant le match, face à l'écart réel. */
+function SpreadCompare({ e }: { e: JournalEntry }) {
+  if (e.spread == null || !e.score) return null;
+  const fmt = (x: number) => Math.abs(x).toFixed(1).replace(".", ",").replace(",0", "");
+  const who = (m: number) => team(m >= 0 ? e.home : e.away).name;
+  const real = e.score[0] - e.score[1];
+  const err = Math.abs(real - e.spread);
+  return (
+    <div className="result-spread">
+      <span>
+        Prévu : <b>{who(e.spread)} par {fmt(e.spread)}</b>
+      </span>
+      <span>
+        Réel : <b>{who(real)} par {fmt(real)}</b>
+      </span>
+      <span className={`result-spread-err ${err <= 5 ? "good" : err >= 15 ? "bad" : ""}`}>
+        {err < 0.5 ? "pile" : `écart de ${fmt(err)} pt${err >= 2 ? "s" : ""}`}
+      </span>
     </div>
   );
 }
