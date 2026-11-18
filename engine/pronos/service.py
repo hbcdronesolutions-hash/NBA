@@ -82,13 +82,18 @@ HANDICAP_EDGE = 4.0   # règle testée : notre écart dépasse la ligne d'au moi
 
 
 def latest_line(con: sqlite3.Connection, gid: str, before: str | None = None) -> dict | None:
+    """Dernière ligne de handicap relevée : Betclic d'abord, puis un autre bookmaker français,
+    et DraftKings (via ESPN) seulement si aucun bookmaker français n'en propose."""
     q = "SELECT bookmaker, handicap_dom, cote_dom, cote_ext, total, releve FROM lignes WHERE match_id=?"
     args: list = [gid]
     if before:
         q += " AND releve <= ?"
         args.append(before)
-    r = con.execute(q + " ORDER BY releve DESC LIMIT 1", args).fetchone()
-    return dict(r) if r else None
+    for extra in (" AND bookmaker LIKE 'Betclic%'", " AND bookmaker LIKE '%(FR)'", ""):
+        r = con.execute(q + extra + " ORDER BY releve DESC LIMIT 1", args).fetchone()
+        if r:
+            return dict(r)
+    return None
 
 
 def handicap_signal(con: sqlite3.Connection, gid: str, model_spread: float) -> dict | None:

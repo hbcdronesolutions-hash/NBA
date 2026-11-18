@@ -184,10 +184,11 @@ def store_schedule(con: sqlite3.Connection, games: list[dict]) -> int:
 FRENCH_BOOKS = ("betclic_fr", "unibet_fr", "winamax_fr", "pmu_fr", "parionssport_fr", "netbet_fr")
 
 
-def fetch_odds(api_key: str | None = None) -> list[dict]:
-    """Cotes vainqueur des bookmakers français via The Odds API (région « fr »).
+def fetch_odds(api_key: str | None = None, spreads: bool = True) -> list[dict]:
+    """Cotes vainqueur (et handicaps) des bookmakers français via The Odds API (région « fr »).
 
-    Une ligne par bookmaker et par match. Offre gratuite : 500 requêtes / mois (1 par appel ici).
+    Une ligne par bookmaker et par match. Offre gratuite : 500 crédits / mois ;
+    un appel coûte 1 crédit par marché (2 avec les handicaps).
     """
     import requests
 
@@ -195,10 +196,13 @@ def fetch_odds(api_key: str | None = None) -> list[dict]:
     if not api_key:
         return []
     resp = requests.get(ODDS_URL, params={
-        "apiKey": api_key, "regions": "fr", "markets": "h2h", "oddsFormat": "decimal",
+        "apiKey": api_key, "regions": "fr", "oddsFormat": "decimal",
+        "markets": "h2h,spreads" if spreads else "h2h",
     }, timeout=30)
     resp.raise_for_status()
-    print(f"The Odds API : {resp.headers.get('x-requests-remaining', '?')} requêtes restantes ce mois-ci")
+    remaining = resp.headers.get("x-requests-remaining")
+    print(f"The Odds API : {remaining or '?'} crédits restants ce mois-ci "
+          f"(appel : {resp.headers.get('x-requests-last', '?')})")
     out = []
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for ev in resp.json():
@@ -209,29 +213,42 @@ def fetch_odds(api_key: str | None = None) -> list[dict]:
         for bk in ev.get("bookmakers", []):
             if bk["key"] not in FRENCH_BOOKS:
                 continue
-            market = next((m for m in bk.get("markets", []) if m["key"] == "h2h"), None)
-            if not market:
-                continue
-            prices = {o["name"]: o["price"] for o in market["outcomes"]}
-            out.append({
-                "home": home, "away": away, "date": day, "releve": now,
-                "bookmaker": bk["title"].replace(" (FR)", "") + " (FR)",
-                "odds_home": prices.get(ev["home_team"]), "odds_away": prices.get(ev["away_team"]),
-            })
+            mk = {m["key"]: m for m in bk.get("markets", [])}
+            row = {"home": home, "away": away, "date": day, "releve": now,
+                   "bookmaker": bk["title"].replace(" (FR)", "") + " (FR)",
+                   "odds_home": None, "odds_away": None, "line": None,
+                   "remaining": int(float(remaining)) if remaining else None}
+            if "h2h" in mk:
+                prices = {o["name"]: o["price"] for o in mk["h2h"]["outcomes"]}
+                row["odds_home"], row["odds_away"] = prices.get(ev["home_team"]), prices.get(ev["away_team"])
+            if "spreads" in mk:
+                sp = {o["name"]: o for o in mk["spreads"]["outcomes"]}
+                h, a = sp.get(ev["home_team"]), sp.get(ev["away_team"])
+                if h and a and h.get("point") is not None:
+                    row["line"] = {"line": h["point"], "odds_h": h["price"], "odds_a": a["price"]}
+            out.append(row)
     return out
 
 
-def store_odds(con: sqlite3.Connection, odds: list[dict]) -> int:
-    n = 0
+def store_odds(con: sqlite3.Connection, odds: list[dict]) -> tuple[int, int]:
+    """Enregistre les cotes vainqueur (table cotes) et les handicaps (table lignes)."""
+    n = nl = 0
     for o in odds:
         row = con.execute("SELECT id FROM matchs WHERE date=? AND domicile=? AND exterieur=?",
                           (o["date"], o["home"], o["away"])).fetchone()
-        if row and o["odds_home"] and o["odds_away"]:
+        if not row:
+            continue
+        if o["odds_home"] and o["odds_away"]:
             con.execute("INSERT OR REPLACE INTO cotes VALUES (?,?,?,?,?)",
                         (row["id"], o["bookmaker"], o["odds_home"], o["odds_away"], o["releve"]))
             n += 1
+        ln = o.get("line")
+        if ln:
+            con.execute("INSERT OR REPLACE INTO lignes VALUES (?,?,?,?,?,?,?)",
+                        (row["id"], o["bookmaker"], ln["line"], ln["odds_h"], ln["odds_a"], None, o["releve"]))
+            nl += 1
     con.commit()
-    return n
+    return n, nl
 
 
 # ---------------------------------------------------------------------- chargement

@@ -28,6 +28,32 @@ from .service import (BACKTEST_FILE, PARAMS_FILE, export, journal, load_journal_
                       save_journal_csv, tonight)
 
 
+def french_odds(con) -> None:
+    """Cotes françaises (vainqueur + handicap) via The Odds API.
+
+    Au plus une lecture toutes les 3 h : ~4 appels de 2 crédits par jour, ~240 crédits par mois
+    sur les 500 gratuits. Sous 40 crédits restants, on ne prend plus que le vainqueur (1 crédit).
+    """
+    last = con.execute("SELECT MAX(releve) FROM cotes WHERE bookmaker LIKE '%(FR)'").fetchone()[0]
+    age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 3600 if last else 99
+    if age_h < 2.9:
+        print(f"Cotes françaises : relevées il y a {age_h:.1f} h, pas de nouvelle requête")
+        return
+    low = con.execute("SELECT valeur FROM meta WHERE cle='odds_restant'").fetchone()
+    try:
+        odds = C.fetch_odds(spreads=not (low and int(low[0]) < 40))
+    except Exception as e:  # les cotes ne doivent pas bloquer les prévisions
+        print(f"Cotes françaises : erreur {e.__class__.__name__}")
+        return
+    rem = next((o["remaining"] for o in odds if o.get("remaining") is not None), None)
+    if rem is not None:
+        con.execute("INSERT OR REPLACE INTO meta VALUES ('odds_restant', ?)", (str(rem),))
+    if odds:
+        n, nl = C.store_odds(con, odds)
+        print(f"Cotes The Odds API : {n} cotes vainqueur, {nl} handicaps français")
+    con.commit()
+
+
 def _seasons_back(n: int) -> list[str]:
     cur = C.season_of(date.today())
     y = int(cur[:4])
@@ -72,15 +98,7 @@ def cmd_soir(args) -> None:
         print(f"Effectifs : {E.store_rosters(con, E.fetch_rosters())} joueurs")
     except Exception as e:
         print(f"Effectifs : erreur {e.__class__.__name__}, ancien effectif conservé")
-    # Cotes françaises : au plus une lecture toutes les 2 h (offre gratuite : 500 requêtes / mois).
-    last = con.execute("SELECT MAX(releve) FROM cotes WHERE bookmaker LIKE '%(FR)'").fetchone()[0]
-    age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 3600 if last else 99
-    if age_h >= 1.9:
-        odds = C.fetch_odds()
-        if odds:
-            print(f"Cotes The Odds API : {C.store_odds(con, odds)} cotes")
-    else:
-        print(f"Cotes françaises : relevées il y a {age_h:.1f} h, pas de nouvelle requête")
+    french_odds(con)
     _, games = tonight(con)
     print(f"Journal : {journal(con, games, load_params().version)} prévisions enregistrées")
     save_journal_csv(con)
@@ -112,15 +130,7 @@ def cmd_auto(args) -> None:
         print(f"Effectifs : {E.store_rosters(con, E.fetch_rosters())} joueurs")
     except Exception as e:
         print(f"Effectifs : erreur {e.__class__.__name__}, ancien effectif conservé")
-    # Cotes françaises : au plus une lecture toutes les 2 h (offre gratuite : 500 requêtes / mois).
-    last = con.execute("SELECT MAX(releve) FROM cotes WHERE bookmaker LIKE '%(FR)'").fetchone()[0]
-    age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 3600 if last else 99
-    if age_h >= 1.9:
-        odds = C.fetch_odds()
-        if odds:
-            print(f"Cotes The Odds API : {C.store_odds(con, odds)} cotes")
-    else:
-        print(f"Cotes françaises : relevées il y a {age_h:.1f} h, pas de nouvelle requête")
+    french_odds(con)
     _, games = tonight(con)
     print(f"Journal : {journal(con, games, load_params().version)} prévisions enregistrées")
     save_journal_csv(con)

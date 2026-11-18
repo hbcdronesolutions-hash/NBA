@@ -13,7 +13,7 @@ Probabilité de victoire de chaque équipe pour les matchs NBA de la nuit, expli
 | **Ce soir** | Matchs de la nuit (heure française), probabilité de chaque équipe, cote minimum colorée, repère des bookmakers sur la barre, alerte quand l'écart dépasse 5 points de %. |
 | Détail d'un match | 3 onglets. **Vainqueur** : écart prévu, ce qui fait pencher, absents, cotes. **Écart** : « gagne de X ou + » (1 à 15 pts) pour chaque équipe, probabilité et cote minimum. **Joueurs** : prévision points / rebonds / passes / P+R+P, puis « plus de / moins de » pour chaque ligne, probabilité et cote minimum. |
 | Désaccord bookmakers | Petit encart en haut de « Ce soir » : le match où notre algorithme et les bookmakers sont le plus en désaccord (notre % contre le leur). Information, pas un conseil de pari : test réaliste sur 2 saisons à −3,8 %. Suivi dans Résultats et Bilan. |
-| Règle handicap domicile | Pastille « Signal handicap » sur la carte, détail dans l'onglet Écart : handicap de l'équipe à domicile quand notre écart prévu dépasse la ligne du bookmaker (DraftKings via ESPN) d'au moins 4 pts. Test sur 3 saisons : 55,2 % de réussite, 290 paris, +5,4 % (non prouvé). Suivi en temps réel dans Résultats et Bilan. |
+| Règle handicap domicile | Pastille « Signal handicap » sur la carte, détail dans l'onglet Écart : handicap de l'équipe à domicile quand notre écart prévu dépasse la ligne du bookmaker (Betclic en priorité, puis un autre bookmaker français, DraftKings via ESPN en dernier recours) d'au moins 4 pts. Test sur 3 saisons : 55,2 % de réussite, 290 paris, +5,4 % (non prouvé). Suivi en temps réel dans Résultats et Bilan. |
 | **Sélection** | Matchs au-dessus du seuil (curseur 60–80 %, 70 % par défaut), badges Très sûr / Sûr / Correct, probabilité « tous justes », cote minimum du combiné si toutes les pastilles sont vertes. |
 | **Forces** | Les 30 équipes : note nette, attaque, défense, évolution sur 15 matchs. |
 | **Bilan** | Réussite globale et sur 7 jours, calibration, face aux bookmakers, référence backtest, journal complet. |
@@ -49,7 +49,7 @@ python -m pronos serve       # affiche l'adresse à ouvrir sur le téléphone (m
 
 Sur le téléphone : ouvrir l'adresse, puis **Partager → Sur l'écran d'accueil** (iPhone) ou **Installer l'application** (Android).
 
-- Cotes françaises (Betclic, Unibet, Winamax, PMU, Parions Sport, NetBet) : clé gratuite sur the-odds-api.com, puis `export ODDS_API_KEY=...` (ou secret GitHub `ODDS_API_KEY`). L'app prend la meilleure cote française par équipe ; sans clé, cotes DraftKings via ESPN.
+- Cotes françaises (Betclic, Unibet, Winamax, PMU, Parions Sport, NetBet) : clé gratuite sur the-odds-api.com, puis `export ODDS_API_KEY=...` (ou secret GitHub `ODDS_API_KEY`). L'app prend la meilleure cote française par équipe et la ligne de handicap Betclic ; sans clé, cotes DraftKings via ESPN. Lecture au plus toutes les 3 h (2 crédits : vainqueur + handicap), soit ~240 crédits par mois sur 500 gratuits ; sous 40 crédits restants, vainqueur seul.
 - Sources : ESPN (calendrier, scores, box scores, cotes DraftKings) et rapport officiel des blessures NBA. stats.nba.com bloque les serveurs cloud ; ESPN non.
 - Automatisation : tâche planifiée (Planificateur de tâches Windows, `cron` sur Mac/Linux), par ex. `matin` à 9 h et `soir` à 18 h.
 
