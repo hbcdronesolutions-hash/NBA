@@ -28,15 +28,30 @@ from .service import (BACKTEST_FILE, PARAMS_FILE, export, journal, load_journal_
                       save_journal_csv, tonight)
 
 
+def _tip_soon(con, hours: float = 2.5) -> bool:
+    """Vrai si un match commence dans les prochaines heures : dernière lecture juste avant les matchs."""
+    now = datetime.now(timezone.utc)
+    for (tip,) in con.execute("SELECT heure_utc FROM matchs WHERE score_dom IS NULL AND heure_utc IS NOT NULL"):
+        try:
+            t = datetime.fromisoformat(str(tip).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=timezone.utc)
+        if 0 <= (t - now).total_seconds() / 3600 <= hours:
+            return True
+    return False
+
+
 def french_odds(con) -> None:
     """Cotes françaises (vainqueur + handicap) via The Odds API.
 
-    Au plus une lecture toutes les 3 h : ~4 appels de 2 crédits par jour, ~240 crédits par mois
-    sur les 500 gratuits. Sous 40 crédits restants, on ne prend plus que le vainqueur (1 crédit).
+    Au plus une lecture toutes les 3 h, plus une juste avant les premiers matchs du soir :
+    ~5 appels de 2 crédits par jour, ~300 crédits par mois sur les 500 gratuits. Sous 40 crédits restants, on ne prend plus que le vainqueur (1 crédit).
     """
     last = con.execute("SELECT MAX(releve) FROM cotes WHERE bookmaker LIKE '%(FR)'").fetchone()[0]
     age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() / 3600 if last else 99
-    if age_h < 2.9:
+    if age_h < 2.9 and not (age_h >= 0.9 and _tip_soon(con)):
         print(f"Cotes françaises : relevées il y a {age_h:.1f} h, pas de nouvelle requête")
         return
     low = con.execute("SELECT valeur FROM meta WHERE cle='odds_restant'").fetchone()
