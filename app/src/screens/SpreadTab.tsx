@@ -86,16 +86,35 @@ function HandicapCard({ g }: { g: Game }) {
         <b>{h.signal ? "Signal" : "Pas de signal"}</b>
       </div>
       <dl>
-        <dt>Ligne {h.book}</dt>
+        <dt>Handicap du bookmaker ({h.book})</dt>
         <dd>
           {home} {lineTxt} · {odds(h.odds_home)}
         </dd>
         <dt>Notre écart prévu</dt>
         <dd>{ours}</dd>
-        <dt>Avance sur la ligne (domicile)</dt>
+        <dt>Notre avance sur le bookmaker</dt>
         <dd>{(h.edge > 0 ? "+" : h.edge < 0 ? "−" : "") + Math.abs(h.edge).toFixed(1).replace(".", ",")} pts</dd>
       </dl>
-      <p className="hcap-note">Signal quand notre écart dépasse la ligne d'au moins 4 pts pour le domicile. Test sur 3 saisons : 55 % de réussite (290 paris), non prouvé.</p>
+      <p className="hcap-rule">{handicapSentence(home, h.line)}</p>
+      <p className="hcap-note">
+        Signal quand nous voyons l'équipe à domicile au moins 4 pts plus forte que le bookmaker, qu'elle soit favorite ou
+        outsider. Test sur 3 saisons : 55 % de réussite (290 paris), non prouvé.
+      </p>
     </div>
   );
+}
+
+/** Ce qu'il faut pour gagner le pari handicap de l'équipe à domicile, en clair. */
+export function handicapSentence(name: string, line: number): string {
+  if (line < 0) {
+    const need = Number.isInteger(line) ? -line + 1 : Math.ceil(-line);
+    const push = Number.isInteger(line) ? ` (exactement ${-line} : remboursé)` : "";
+    return `Pour gagner ce pari, les ${name} doivent gagner de ${need} points ou plus${push}.`;
+  }
+  if (line > 0) {
+    const max = Number.isInteger(line) ? line - 1 : Math.floor(line);
+    const push = Number.isInteger(line) ? ` (défaite de exactement ${line} : remboursé)` : "";
+    return `Pour gagner ce pari, les ${name} doivent gagner, ou perdre de ${max} point${max > 1 ? "s" : ""} ou moins${push}.`;
+  }
+  return `Pour gagner ce pari, les ${name} doivent gagner (match nul impossible : remboursé en cas d'égalité).`;
 }

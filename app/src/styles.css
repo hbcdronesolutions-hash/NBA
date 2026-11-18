@@ -946,3 +946,4 @@ input[type="range"]::-moz-range-thumb {
 .hcap-card dd { margin: 0; text-align: right; font-weight: 650; }
 .hcap-note { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .hcap-res.won { background: #ecebfd; color: #5b4bd6; }
+.hcap-rule { margin: 0 0 8px; padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: 14px; font-weight: 650; color: var(--ink); line-height: 1.4; }

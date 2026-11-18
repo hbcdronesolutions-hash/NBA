@@ -201,7 +201,7 @@ export function Record() {
                   </div>
                 </div>
                 <p className="note">
-                  En temps réel · handicap de l'équipe à domicile quand notre écart dépasse la ligne d'au moins 4 pts.
+                  En temps réel · pari handicap sur l'équipe à domicile (favorite ou outsider) quand nous la voyons au moins 4 pts plus forte que le bookmaker.
                   Objectif : plus de 53 % de réussite. Test sur 3 saisons : 55,2 % (290 paris, +5,4 %).
                 </p>
               </>
