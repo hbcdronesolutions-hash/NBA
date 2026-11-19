@@ -201,15 +201,14 @@ def train(pl: pd.DataFrame, model_dir: Path = MODEL_DIR) -> None:
     import lightgbm as lgb
     d = pl[_eligible(pl) & (pl["tonight"] == 0)]
     model_dir.mkdir(parents=True, exist_ok=True)
+    common = {"num_leaves": 31, "min_data_in_leaf": 100, "verbose": -1}
     for t in STATS:
-        X, y = d[_feats(t)], d[t]
-        lgb.LGBMRegressor(objective="poisson", n_estimators=500, learning_rate=0.03, num_leaves=31,
-                          min_child_samples=100, subsample=0.8, subsample_freq=1, colsample_bytree=0.8,
-                          verbose=-1).fit(X, y).booster_.save_model(str(model_dir / f"{t}_mu.txt"))
+        ds = lgb.Dataset(d[_feats(t)], d[t], free_raw_data=False)
+        lgb.train({**common, "objective": "poisson", "learning_rate": 0.03, "bagging_fraction": 0.8, "bagging_freq": 1,
+                   "feature_fraction": 0.8}, ds, num_boost_round=500).save_model(str(model_dir / f"{t}_mu.txt"))
         for q in QS:
-            lgb.LGBMRegressor(objective="quantile", alpha=q, n_estimators=300, learning_rate=0.05, num_leaves=31,
-                              min_child_samples=100, verbose=-1).fit(X, y).booster_.save_model(
-                str(model_dir / f"{t}_q{int(q * 100)}.txt"))
+            lgb.train({**common, "objective": "quantile", "alpha": q, "learning_rate": 0.05}, ds,
+                      num_boost_round=300).save_model(str(model_dir / f"{t}_q{int(q * 100)}.txt"))
     (model_dir / "trained").write_text(datetime.now(timezone.utc).isoformat())
 
 
