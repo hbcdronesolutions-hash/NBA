@@ -983,3 +983,38 @@ input[type="range"]::-moz-range-thumb {
 .result-spread-err.good { background: var(--green-bg); color: var(--green); }
 .result-spread-err.bad { background: #fbe6e4; color: var(--red); }
 @media (prefers-color-scheme: dark) { .result-spread-err.bad { background: #34181a; } }
+
+/* ------------------------------------------------- paris joueurs */
+.first-note { margin: 0 4px 6px; }
+.prop-pick { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.prop-pick.is-signal { box-shadow: var(--shadow), inset 0 0 0 2px var(--green); }
+.prop-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.prop-player { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.prop-bet { font-size: 15px; font-weight: 650; }
+.prop-bet small { color: var(--muted); font-weight: 550; }
+.prop-why, .prop-vs { font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.prop-side { display: flex; flex-direction: column; align-items: flex-end; min-width: 64px; }
+.prop-p { font-size: 28px; font-weight: 750; letter-spacing: -0.03em; line-height: 1; }
+.prop-p small { font-size: 14px; color: var(--muted); margin-left: 1px; }
+.prop-min { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.prop-odds { font-size: 16px; font-weight: 700; }
+.prop-history { padding: 4px 16px; }
+.prop-hist-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.prop-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.prop-dot.won { background: var(--green); }
+.prop-dot.lost { background: var(--red); }
+.prop-hist-main { flex: 1; min-width: 0; font-size: 14px; display: flex; flex-direction: column; }
+.prop-hist-main small { color: var(--muted); font-size: 12px; }
+.prop-hist-res { font-weight: 700; font-size: 16px; }
+.prop-lines { padding: 6px 16px 10px; }
+.prop-lines-head { display: flex; align-items: center; gap: 6px; padding: 10px 0; font-weight: 650; font-size: 14px; }
+.prop-line-row { padding: 10px 0; display: flex; flex-direction: column; gap: 8px; }
+.prop-line-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 15px; }
+.prop-line-name small { width: 100%; color: var(--muted); font-size: 12px; }
+.prop-ladder { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.prop-rung { flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 9px; border-radius: 10px; background: var(--press); font-size: 12px; min-width: 68px; }
+.prop-rung b { font-size: 12px; }
+.prop-rung span { font-size: 15px; font-weight: 700; }
+.prop-rung small { color: var(--muted); font-size: 11px; }
+.prop-rung.hi { background: var(--green-bg); color: var(--green); }
+.prop-rung.hi small { color: inherit; opacity: 0.8; }

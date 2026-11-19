@@ -126,6 +126,27 @@ def cmd_soir(args) -> None:
         print(f"  {g['away']} @ {g['home']}  →  {fav} {max(g['p_home'], 1 - g['p_home']):.0%}")
 
 
+def player_props(con, day: str, games: list[dict]) -> None:
+    """Paris joueurs du soir (props.json) et suivi des résultats ; ne bloque jamais le reste."""
+    from . import playerprops as PP
+    from .service import write_payloads
+    try:
+        PP.load_csv(con)
+        print(f"Paris joueurs : {PP.settle(con)} résultats notés")
+        spreads = {(g["home"], g["away"]): g.get("spread") for g in games}
+        payload = PP.tonight_picks(con, day, INJ.latest_for(con, day), spreads) if games else {"date": day}
+        tips = {g["id"]: g.get("tip_utc") or "" for g in games}
+        print(f"Paris joueurs : {len(payload.get('signals', []))} signaux, {len(payload.get('fallback', []))} à défaut, "
+              f"{PP.journal(con, payload, tips)} enregistrés")
+        payload["history"] = PP.history(con)
+        write_payloads({"props.json": payload})
+        PP.save_csv(con)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Paris joueurs : erreur {e.__class__.__name__}")
+
+
 def cmd_auto(args) -> None:
     """Tâche planifiée (GitHub Actions) : tout en une fois, base reconstruite si besoin."""
     con = connect()
@@ -149,10 +170,11 @@ def cmd_auto(args) -> None:
     except Exception as e:
         print(f"Effectifs : erreur {e.__class__.__name__}, ancien effectif conservé")
     french_odds(con)
-    _, games = tonight(con)
+    day_ts, games = tonight(con)
     print(f"Journal : {journal(con, games, load_params().version)} prévisions enregistrées")
     save_journal_csv(con)
     export(con)
+    player_props(con, day_ts.date().isoformat(), games)
     for g in games:
         fav = g["home"] if g["p_home"] >= .5 else g["away"]
         print(f"  {g['away']} @ {g['home']}  →  {fav} {max(g['p_home'], 1 - g['p_home']):.0%}")

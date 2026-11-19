@@ -52,6 +52,14 @@ jobs:
           key: pronos-db-${{ github.run_id }}
           restore-keys: pronos-db-
 
+      # Modèles des paris joueurs (réentraînés automatiquement s'ils ont plus d'une semaine).
+      - name: Modèles joueurs
+        uses: actions/cache@v4
+        with:
+          path: data/props_models
+          key: props-models-${{ github.run_id }}
+          restore-keys: props-models-
+
       - name: Collecte et prévisions
         working-directory: engine
         env:
@@ -68,6 +76,7 @@ jobs:
           git config user.name "pronos-bot"
           git config user.email "pronos-bot@users.noreply.github.com"
           git add data/journal.csv data/params.json data/backtest.json
+          git add data/paris_joueurs.csv 2>/dev/null || true
           if ! git diff --cached --quiet; then
             git commit -m "Journal des prévisions $(date -u +%Y-%m-%dT%H:%MZ)"
             git pull --rebase --autostash -X theirs origin "${GITHUB_REF_NAME}"

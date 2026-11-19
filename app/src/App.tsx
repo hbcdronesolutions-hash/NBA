@@ -1,6 +1,7 @@
 import { HashRouter, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { TabBar } from "./components/TabBar";
+import { Joueurs } from "./screens/Joueurs";
 import { Match } from "./screens/Match";
 import { Ratings } from "./screens/Ratings";
 import { Record } from "./screens/Record";
@@ -22,6 +23,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Tonight />} />
           <Route path="/match/:id" element={<Match />} />
+          <Route path="/joueurs" element={<Joueurs />} />
           <Route path="/resultats" element={<Results />} />
           <Route path="/selection" element={<Selection />} />
           <Route path="/forces" element={<Ratings />} />

@@ -124,3 +124,61 @@ export interface RecordData {
   journal: JournalEntry[];
   backtest: Backtest | null;
 }
+
+export type PropStat = "pts" | "reb" | "ast" | "pra";
+
+export interface PropPick {
+  player: string;
+  player_id: number;
+  team: string;
+  opp: string;
+  match_id: string;
+  stat: PropStat;
+  label: string;
+  threshold: number;
+  p: number;
+  min_odds: number;
+  expected: number;
+  usual: number;
+  dev: number;
+  signal: boolean;
+  absent_pts: number;
+}
+
+export interface PropLine {
+  line: number;
+  p: number;
+}
+
+export interface PlayerProps {
+  player: string;
+  team: string;
+  opp: string;
+  match_id: string;
+  absent_pts: number;
+  stats: Partial<Record<PropStat, { expected: number; usual: number; low: number; high: number; ladder: PropLine[] }>>;
+}
+
+export interface PropResult {
+  date: string;
+  player: string;
+  team: string;
+  opp: string;
+  stat: PropStat;
+  label: string;
+  threshold: number;
+  p: number;
+  min_odds: number;
+  signal: boolean;
+  result: number | null;
+  won: boolean | null;
+}
+
+export interface PropsData {
+  date: string;
+  generated_at?: string;
+  signals?: PropPick[];
+  fallback?: PropPick[];
+  players?: PlayerProps[];
+  history?: PropResult[];
+}

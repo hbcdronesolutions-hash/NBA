@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Game, RecordData, Ratings, Side, Today } from "./types";
+import type { Game, PropsData, RecordData, Ratings, Side, Today } from "./types";
 
 const cache = new Map<string, Promise<unknown>>();
 
@@ -33,6 +33,7 @@ function useData<T>(name: string): { data: T | null; error: boolean } {
 export const useToday = () => useData<Today>("today");
 export const useRatings = () => useData<Ratings>("ratings");
 export const useRecord = () => useData<RecordData>("record");
+export const useProps = () => useData<PropsData>("props");
 
 /** Équipe pronostiquée et sa probabilité. */
 export function pick(g: Game): { side: Side; abbr: string; p: number } {
